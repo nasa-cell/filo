@@ -3,6 +3,7 @@
 # variables de Windows GEMINI_API_KEY y FISH_API_KEY, nunca de archivos.
 import base64
 import socket
+import sys
 from concurrent.futures import ThreadPoolExecutor, as_completed
 import json
 import re
@@ -442,6 +443,7 @@ class Manejador(SimpleHTTPRequestHandler):
 
 
 if __name__ == '__main__':
+    sys.stdout.reconfigure(line_buffering=True)  # en Render el registro se ve al instante
     print(f'Filo esta lista en http://localhost:{PUERTO}  (cierra esta ventana para apagarla)')
     # tambien escucha en ::1 (IPv6): Windows prueba primero ahi al abrir «localhost»; si nadie contesta,
     # cada pedido perdia ~2,5 s antes de pasar a 127.0.0.1

@@ -218,7 +218,9 @@ def buscar_web(consulta):
     """Prueba buscadores gratis en orden hasta que uno responda (en Render algunos bloquean a los servidores)."""
     for buscador in (_buscar_duckduckgo, _buscar_duckduckgo_lite, _buscar_bing, _buscar_google_gemini, _buscar_wikipedia):
         try:
+            inicio = time.time()
             resultados = buscador(consulta)
+            print(f'buscar: {buscador.__name__} dio {len(resultados)} en {time.time() - inicio:.1f} s', flush=True)
             if resultados:
                 return resultados
         except Exception as e:
