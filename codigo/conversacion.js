@@ -223,7 +223,7 @@
   // dormida: pijama; dibujando: boina y bata; buscando: detective; con musica o video: audifonos;
   // hablando de comida: chef; de vez en cuando: gorro de pollito; y en fechas especiales su ropa de fiesta
   const ocasion = { dibujando: false, buscando: false, chefHasta: 0, pollitoHasta: 0, cumple: false };
-  const COMIDA = /(?<!\p{L})(carne|comida|comer|com[ií]|comiste|hambre|cocin\p{L}*|receta\p{L}*|postre|almuerzo|cena|desayuno|pizza|pollo|rocoto|ceviche|dulces?|pastel|torta|helado)(?!\p{L})/iu;
+  const COMIDA = /(?<!\p{L})(carne|comida|comer|com[ií]|comiste|hambre|cocin\p{L}*|receta\p{L}*|postre|almuerzo|cena|desayuno|pizza|pollo|rocoto|ceviche|golosinas?|pastel|torta|helado)(?!\p{L})/iu;
   function fechaEspecial() {
     const hoy = new Date();
     if (hoy.getMonth() === 9 && hoy.getDate() === 31) return 'bruja';
