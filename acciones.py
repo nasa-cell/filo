@@ -67,6 +67,8 @@ def credenciales_cloudflare():
         # las mismas credenciales gratis que usa el resumidor de PDF (nunca se copian a este proyecto)
         import importlib.util
         ruta = r'D:\descargas\Nueva carpeta (94)\resumidor-pdf-mvc\configuracion_local.py'
+        if not os.path.exists(ruta):
+            return None, None
         spec = importlib.util.spec_from_file_location('cfg_cloudflare', ruta)
         cfg = importlib.util.module_from_spec(spec)
         spec.loader.exec_module(cfg)
@@ -133,14 +135,20 @@ def subir_a_nube(imagen, nombre):
         return None
 
 
-def dibujar(prompt):
+def _dibujar_cloudflare(prompt):
     cuenta, token = credenciales_cloudflare()
+    if not (cuenta and token):
+        raise RuntimeError('sin claves de Cloudflare')
     datos = json.dumps({'prompt': prompt[:1500], 'steps': 6}).encode()
     pedido = urllib.request.Request(
         f'https://api.cloudflare.com/client/v4/accounts/{cuenta}/ai/run/@cf/black-forest-labs/flux-1-schnell',
         data=datos, headers={'Authorization': f'Bearer {token}', 'Content-Type': 'application/json'})
     with urllib.request.urlopen(pedido, timeout=60) as r:
-        imagen = base64.b64decode(json.load(r)['result']['image'])
+        return base64.b64decode(json.load(r)['result']['image'])
+
+
+def dibujar(prompt):
+    imagen = _dibujar_cloudflare(prompt)
     os.makedirs(DIBUJOS, exist_ok=True)
     nombre = time.strftime('dibujo-%Y%m%d-%H%M%S') + '.jpg'
     with open(os.path.join(DIBUJOS, nombre), 'wb') as f:
@@ -207,6 +215,110 @@ def buscar_youtube(consulta):
 
 # ---------- internet ----------
 def buscar_web(consulta):
+    """Prueba buscadores gratis en orden hasta que uno responda (en Render algunos bloquean a los servidores)."""
+    for buscador in (_buscar_duckduckgo, _buscar_duckduckgo_lite, _buscar_bing, _buscar_google_gemini, _buscar_wikipedia):
+        try:
+            resultados = buscador(consulta)
+            if resultados:
+                return resultados
+        except Exception as e:
+            print(buscador.__name__, 'fallo:', str(e)[:150])
+    return []
+
+
+def _clave(nombre):
+    valor = os.environ.get(nombre)
+    if not valor and os.name == 'nt':
+        import winreg
+        try:
+            with winreg.OpenKey(winreg.HKEY_CURRENT_USER, 'Environment') as k:
+                valor = winreg.QueryValueEx(k, nombre)[0]
+        except OSError:
+            valor = None
+    return valor
+
+
+def _buscar_google_gemini(consulta):
+    """Busqueda de Google hecha por Gemini (gratis): devuelve su resumen y las paginas que uso."""
+    clave = _clave('GEMINI_API_KEY')
+    if not clave:
+        return []
+    cuerpo = {'contents': [{'role': 'user', 'parts': [{'text': 'Busca en internet y resume en español, con datos concretos y actuales: ' + consulta[:300]}]}],
+              'tools': [{'google_search': {}}], 'generationConfig': {'temperature': 0.2, 'maxOutputTokens': 600}}
+    pedido = urllib.request.Request('https://generativelanguage.googleapis.com/v1beta/models/gemini-flash-lite-latest:generateContent',
+                                    data=json.dumps(cuerpo).encode(),
+                                    headers={'Content-Type': 'application/json', 'x-goog-api-key': clave})
+    with urllib.request.urlopen(pedido, timeout=25) as r:
+        candidato = json.load(r)['candidates'][0]
+    texto = ''.join(p.get('text', '') for p in candidato.get('content', {}).get('parts', [])).strip()
+    if not texto:
+        return []
+    fuentes = [c['web'] for c in candidato.get('groundingMetadata', {}).get('groundingChunks', []) if c.get('web')]
+    primera = fuentes[0] if fuentes else {}
+    resultados = [{'titulo': primera.get('title') or 'Google', 'url': primera.get('uri') or 'https://www.google.com/search?q=' + urllib.parse.quote(consulta), 'resumen': texto}]
+    for f in fuentes[1:5]:
+        resultados.append({'titulo': f.get('title', ''), 'url': f.get('uri', ''), 'resumen': ''})
+    return resultados
+
+
+_limpio = lambda s: html.unescape(re.sub(r'<[^>]+>', '', s or '')).strip()
+
+
+def _buscar_duckduckgo_lite(consulta):
+    pedido = urllib.request.Request('https://lite.duckduckgo.com/lite/', data=urllib.parse.urlencode({'q': consulta, 'kl': 'es-es'}).encode(),
+                                    headers={'User-Agent': NAVEGADOR, 'Content-Type': 'application/x-www-form-urlencoded'})
+    with urllib.request.urlopen(pedido, timeout=10) as r:
+        pagina = r.read().decode('utf-8', 'replace')
+    enlaces = re.findall(r"<a[^>]+href=\"([^\"]+)\"[^>]*class='result-link'[^>]*>(.*?)</a>", pagina, re.S)
+    resumenes = re.findall(r"<td class='result-snippet'>(.*?)</td>", pagina, re.S)
+    resultados = []
+    for i, (url, titulo) in enumerate(enlaces[:6]):
+        url = html.unescape(url)
+        if 'uddg=' in url:
+            url = urllib.parse.unquote(urllib.parse.parse_qs(urllib.parse.urlparse(url).query)['uddg'][0])
+        if url.startswith('//'):
+            url = 'https:' + url
+        resultados.append({'titulo': _limpio(titulo), 'url': url, 'resumen': _limpio(resumenes[i] if i < len(resumenes) else '')})
+    return resultados
+
+
+def _buscar_bing(consulta):
+    pedido = urllib.request.Request('https://www.bing.com/search?setlang=es&cc=PE&q=' + urllib.parse.quote(consulta),
+                                    headers={'User-Agent': NAVEGADOR, 'Accept-Language': 'es-PE,es;q=0.9'})
+    with urllib.request.urlopen(pedido, timeout=10) as r:
+        pagina = r.read().decode('utf-8', 'replace')
+    resultados = []
+    for bloque in re.findall(r'<li class="b_algo".*?</li>', pagina, re.S):
+        enlace = re.search(r'<h2[^>]*>.*?<a[^>]+href="([^"]+)"[^>]*>(.*?)</a>', bloque, re.S)
+        if not enlace:
+            continue
+        url = html.unescape(enlace.group(1))
+        if '/ck/a?' in url:  # enlace de Bing que redirige: la direccion real va en «u» (base64)
+            u = urllib.parse.parse_qs(urllib.parse.urlparse(url).query).get('u', [''])[0]
+            if u.startswith('a1'):
+                try:
+                    url = base64.urlsafe_b64decode(u[2:] + '=' * (-len(u[2:]) % 4)).decode()
+                except Exception:
+                    continue
+        if not url.startswith('http'):
+            continue
+        resumen = re.search(r'<p[^>]*>(.*?)</p>', bloque, re.S)
+        resultados.append({'titulo': _limpio(enlace.group(2)), 'url': url, 'resumen': _limpio(resumen.group(1) if resumen else '')})
+        if len(resultados) >= 6:
+            break
+    return resultados
+
+
+def _buscar_wikipedia(consulta):
+    url = 'https://es.wikipedia.org/w/api.php?action=query&list=search&format=json&srlimit=5&srsearch=' + urllib.parse.quote(consulta)
+    with urllib.request.urlopen(urllib.request.Request(url, headers={'User-Agent': 'Filo2D/1.0'}), timeout=10) as r:
+        datos = json.load(r)
+    limpio = lambda s: html.unescape(re.sub(r'<[^>]+>', '', s or '')).strip()
+    return [{'titulo': d['title'], 'url': 'https://es.wikipedia.org/wiki/' + urllib.parse.quote(d['title'].replace(' ', '_')),
+             'resumen': limpio(d.get('snippet'))} for d in datos.get('query', {}).get('search', [])]
+
+
+def _buscar_duckduckgo(consulta):
     pedido = urllib.request.Request('https://html.duckduckgo.com/html/?kl=es-es&q=' + urllib.parse.quote(consulta),
                                     headers={'User-Agent': NAVEGADOR})
     with urllib.request.urlopen(pedido, timeout=10) as r:
