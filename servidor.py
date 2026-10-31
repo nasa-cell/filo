@@ -397,6 +397,19 @@ class Manejador(SimpleHTTPRequestHandler):
     def log_message(self, *args):
         pass
 
+    # sin esto el navegador sigue usando el codigo viejo despues de publicar una version nueva:
+    # con «no-cache» pregunta cada vez si cambio (si no cambio, el servidor responde 304 y no se baja de nuevo)
+    def send_header(self, clave, valor):
+        if clave.lower() == 'cache-control':
+            self._con_cache = True
+        super().send_header(clave, valor)
+
+    def end_headers(self):
+        if not getattr(self, '_con_cache', False):
+            super().send_header('Cache-Control', 'no-cache')
+        self._con_cache = False
+        super().end_headers()
+
     def enviar_json(self, codigo, datos):
         cuerpo = json.dumps(datos, ensure_ascii=False).encode()
         self.send_response(codigo)
