@@ -222,9 +222,10 @@
   // ---------- ropa segun la ocasion (codigo/ropa.js) ----------
   // dormida: pijama; dibujando: boina y bata; buscando: detective; con musica o video: audifonos;
   // hablando de comida: chef; de vez en cuando: gorro de pollito; y en fechas especiales su ropa de fiesta
-  const ocasion = { dibujando: false, buscando: false, chefHasta: 0, pollitoHasta: 0, cumple: false };
+  const ocasion = { dibujando: false, buscando: false, chefHasta: 0, pollitoHasta: 0, cumple: false, pedida: null, pedidaHasta: 0, sinFecha: false };
   const COMIDA = /(?<!\p{L})(carne|comida|comer|com[ií]|comiste|hambre|cocin\p{L}*|receta\p{L}*|postre|almuerzo|cena|desayuno|pizza|pollo|rocoto|ceviche|golosinas?|pastel|torta|helado)(?!\p{L})/iu;
   function fechaEspecial() {
+    if (ocasion.sinFecha) return null;
     const hoy = new Date();
     if (hoy.getMonth() === 9 && hoy.getDate() === 31) return 'bruja';
     if (hoy.getMonth() === 11) return 'navidad';
@@ -235,6 +236,7 @@
     if (dormida) return 'pijama';
     if (ocasion.dibujando) return 'pintora';
     if (ocasion.buscando) return 'detective';
+    if (ocasion.pedidaHasta > ahora) return ocasion.pedida;  // la que le pidio el Maestro
     if (A() && A().estaSonando && A().estaSonando()) return 'audifonos';
     if (ocasion.chefHasta > ahora) return 'chef';
     if (ocasion.pollitoHasta > ahora) return 'pollito';
@@ -386,6 +388,33 @@
     if (detalleUltimo && /^(filo,?\s*)?((cu[eé]ntame|dime|expl[ií]ca(me)?|sigue) (m[aá]s|un poco m[aá]s)|m[aá]s detalles?|dame m[aá]s detalles?|y qu[eé] m[aá]s)(,? filo)?$/.test(t)) {
       contarMas(detalleUltimo);
       return true;
+    }
+    // «ponte la ropa navideña», «vístete de bruja», «quítate el disfraz»: se cambia de ropa cuando se lo piden
+    if (/(qu[ií]ta(te)?|s[aá]ca(te)?) (la ropa|el gorro|el disfraz|eso|los aud[ií]fonos|el sombrero|la boina)|sin disfraz/.test(t)) {
+      ocasion.pedidaHasta = 0;
+      ocasion.sinFecha = true;  // si pidio quitarselo, hoy tampoco vuelve el disfraz de la fecha
+      decir('¡Listo, Maestro! Ya me lo quité.', 'feliz');
+      return true;
+    }
+    if (/\b(ponte|p[oó]nte|v[ií]stete|usa|ll[eé]va|disfr[aá]zate|cambia(te)? (a|de))\b/.test(t)) {
+      const ROPAS = [
+        ['navidad', /navide|navidad|santa|pap[aá] noel/, '¡Jo, jo, jo! ¡Ya tengo mi gorro de Navidad, Maestro! ¿Me veo bonita?'],
+        ['bruja', /bruja|halloween/, '¡Ji, ji, ji! ¡Soy una brujita! ¡Dulce o truco, Maestro!'],
+        ['pijama', /pijama|ropa de dormir/, '¡Ya tengo mi pijama! Aunque todavía no tengo sueño… creo.'],
+        ['pintora', /pintora|boina|bata|pintar/, '¡Lista para pintar! ¿Qué dibujamos, Maestro?'],
+        ['detective', /detective|lupa/, '¡La detective Filo está lista para investigar!'],
+        ['chef', /chef|cociner|delantal/, '¡La chef Filo! ¿Me preparas carne, Maestro? ¡Digo… yo cocino!'],
+        ['pollito', /pollito|filolial/, '¡Pío, pío! ¡Mira mi gorrito de pollito!'],
+        ['audifonos', /aud[ií]fonos|cascos/, '¡Mis audífonos con orejitas! ¿Ponemos música?'],
+        ['fiesta', /fiesta|cumplea|gorrito/, '¡Es hora de la fiesta, Maestro!'],
+      ];
+      const ropa = ROPAS.find(([, regla]) => regla.test(t));
+      if (ropa) {
+        ocasion.pedida = ropa[0];
+        ocasion.pedidaHasta = Date.now() + 10 * 60000;  // la lleva 10 minutos
+        decir(ropa[2], 'feliz');
+        return true;
+      }
     }
     // «saluda», «preséntate», «¿quién eres?»: presentacion ya grabada, al instante
     const sinNombre = t.replace(/^(hola,?\s*)?(filo,?\s*)?/, '').replace(/,?\s*filo$/, '').trim();
