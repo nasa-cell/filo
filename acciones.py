@@ -215,65 +215,50 @@ def buscar_youtube(consulta):
 
 # ---------- internet ----------
 def buscar_web(consulta):
-    """Prueba buscadores gratis en orden hasta que uno responda (en Render algunos bloquean a los servidores)."""
-    rapidos = (_buscar_duckduckgo, _buscar_bing, _buscar_duckduckgo_lite)
+    """Varios buscadores gratis a la vez; se usa el primero de la lista con resultados que de verdad hablen
+    de lo pedido (en Render, DuckDuckGo directo no responde y Bing a veces devuelve cosas sin relacion)."""
+    rapidos = (_buscar_duckduckgo, _buscar_duckduckgo_jina, _buscar_bing, _buscar_duckduckgo_lite)
     hilos = ThreadPoolExecutor(len(rapidos))
     tareas = [hilos.submit(b, consulta) for b in rapidos]
     hilos.shutdown(wait=False)
-    limite = time.time() + 7
+    limite = time.time() + 9
     for buscador, tarea in zip(rapidos, tareas):
         try:
-            resultados = tarea.result(timeout=max(0.1, limite - time.time()))
-            print(f'buscar: {buscador.__name__} dio {len(resultados)}', flush=True)
+            resultados = _relevantes(consulta, tarea.result(timeout=max(0.1, limite - time.time())))
+            print(f'buscar: {buscador.__name__} dio {len(resultados)} relevantes', flush=True)
             if resultados:
                 return resultados
         except Exception as e:
             print(buscador.__name__, 'fallo:', str(e)[:150] or type(e).__name__, flush=True)
-    for buscador in (_buscar_google_gemini, _buscar_wikipedia):
-        try:
-            inicio = time.time()
-            resultados = buscador(consulta)
-            print(f'buscar: {buscador.__name__} dio {len(resultados)} en {time.time() - inicio:.1f} s', flush=True)
-            if resultados:
-                return resultados
-        except Exception as e:
-            print(buscador.__name__, 'fallo:', str(e)[:150])
+    try:
+        resultados = _relevantes(consulta, _buscar_wikipedia(consulta))
+        print(f'buscar: wikipedia dio {len(resultados)} relevantes', flush=True)
+        return resultados
+    except Exception as e:
+        print('wikipedia fallo:', str(e)[:150], flush=True)
     return []
 
 
-def _clave(nombre):
-    valor = os.environ.get(nombre)
-    if not valor and os.name == 'nt':
-        import winreg
-        try:
-            with winreg.OpenKey(winreg.HKEY_CURRENT_USER, 'Environment') as k:
-                valor = winreg.QueryValueEx(k, nombre)[0]
-        except OSError:
-            valor = None
-    return valor
+_VACIAS = set('que qué cual cuál como cómo donde dónde cuando cuándo quien quién para por sobre busca buscar buscame búscame '
+              'dime decir informacion información noticias hoy esta este esto estos estas una uno unos unas los las del '
+              'con sin hay son eres tiene tienen hace hacer'.split())
 
 
-def _buscar_google_gemini(consulta):
-    """Busqueda de Google hecha por Gemini (gratis): devuelve su resumen y las paginas que uso."""
-    clave = _clave('GEMINI_API_KEY')
-    if not clave:
-        return []
-    cuerpo = {'contents': [{'role': 'user', 'parts': [{'text': 'Busca en internet y resume en español, con datos concretos y actuales: ' + consulta[:300]}]}],
-              'tools': [{'google_search': {}}], 'generationConfig': {'temperature': 0.2, 'maxOutputTokens': 600}}
-    pedido = urllib.request.Request('https://generativelanguage.googleapis.com/v1beta/models/gemini-flash-lite-latest:generateContent',
-                                    data=json.dumps(cuerpo).encode(),
-                                    headers={'Content-Type': 'application/json', 'x-goog-api-key': clave})
-    with urllib.request.urlopen(pedido, timeout=25) as r:
-        candidato = json.load(r)['candidates'][0]
-    texto = ''.join(p.get('text', '') for p in candidato.get('content', {}).get('parts', [])).strip()
-    if not texto:
-        return []
-    fuentes = [c['web'] for c in candidato.get('groundingMetadata', {}).get('groundingChunks', []) if c.get('web')]
-    primera = fuentes[0] if fuentes else {}
-    resultados = [{'titulo': primera.get('title') or 'Google', 'url': primera.get('uri') or 'https://www.google.com/search?q=' + urllib.parse.quote(consulta), 'resumen': texto}]
-    for f in fuentes[1:5]:
-        resultados.append({'titulo': f.get('title', ''), 'url': f.get('uri', ''), 'resumen': ''})
-    return resultados
+def _sin_tildes(texto):
+    return texto.lower().translate(str.maketrans('áéíóúüñ', 'aeiouun'))
+
+
+def _relevantes(consulta, resultados):
+    """Solo resultados que nombran alguna palabra importante de lo buscado."""
+    palabras = [p for p in re.findall(r'\w{3,}', _sin_tildes(consulta)) if p not in {_sin_tildes(v) for v in _VACIAS}]
+    if not palabras:
+        return resultados
+    buenos = []
+    for r in resultados or []:
+        texto = _sin_tildes(' '.join((r.get('titulo', ''), r.get('resumen', ''), r.get('url', ''))))
+        if any(p in texto for p in palabras):
+            buenos.append(r)
+    return buenos
 
 
 _limpio = lambda s: html.unescape(re.sub(r'<[^>]+>', '', s or '')).strip()
@@ -337,7 +322,18 @@ def _buscar_duckduckgo(consulta):
     pedido = urllib.request.Request('https://html.duckduckgo.com/html/?kl=es-es&q=' + urllib.parse.quote(consulta),
                                     headers={'User-Agent': NAVEGADOR})
     with urllib.request.urlopen(pedido, timeout=6) as r:
-        pagina = r.read().decode('utf-8', 'replace')
+        return _leer_duckduckgo(r.read().decode('utf-8', 'replace'))
+
+
+def _buscar_duckduckgo_jina(consulta):
+    """La misma pagina de DuckDuckGo pedida a traves de r.jina.ai (gratis, sin clave): funciona desde Render."""
+    pedido = urllib.request.Request('https://r.jina.ai/https://html.duckduckgo.com/html/?kl=es-es&q=' + urllib.parse.quote(consulta),
+                                    headers={'Accept': 'text/plain', 'X-Return-Format': 'html', 'User-Agent': 'Filo2D/1.0'})
+    with urllib.request.urlopen(pedido, timeout=9) as r:
+        return _leer_duckduckgo(r.read().decode('utf-8', 'replace'))
+
+
+def _leer_duckduckgo(pagina):
     resultados = []
     for bloque in re.findall(r'<div class="result results_links.*?(?=<div class="result results_links|\Z)', pagina, re.S):
         if 'result--ad' in bloque:
