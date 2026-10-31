@@ -1,0 +1,220 @@
+/* ---------- barra de abajo: saludar, escribir, foto, camara, microfono y enviar ---------- */
+body { grid-template-rows: auto minmax(0, 1fr) auto; grid-template-columns: minmax(0, 1fr); }
+.charla { flex-wrap: wrap; width: min(820px, calc(100% - 20px)); margin: 6px auto 12px; padding: 8px; align-items: center; background: rgba(255, 255, 255, .88); border: 2px solid #cfe0ff; border-radius: 20px; box-shadow: 0 8px 24px rgba(0, 0, 0, .25); backdrop-filter: blur(6px); }
+.charla input { border-color: transparent; background: #f2f7ff; }
+.charla.soltar { border-color: var(--dorado); box-shadow: 0 0 0 4px rgba(245, 179, 1, .45); }
+.boton.suave { background: #fff; color: var(--azul); border: 2px solid var(--azul); box-shadow: none; }
+.boton.suave:hover { background: #eaf1ff; }
+.boton.redondo { width: 46px; height: 46px; padding: 0; border-radius: 50%; font-size: 1.25rem; background: #fff; border: 2px solid var(--azul); box-shadow: none; flex: none; }
+.boton.redondo:hover { background: #eaf1ff; }
+#b-micro[aria-pressed="true"] { background: #e2283f; border-color: #e2283f; animation: escucha 1s ease-in-out infinite; }
+#b-camara[aria-pressed="true"] { background: var(--dorado); border-color: var(--dorado); }
+@keyframes escucha { 50% { box-shadow: 0 0 0 8px rgba(226, 40, 63, .25); } }
+.boton:focus-visible, .vista:focus-visible, .charla input:focus-visible { outline: 3px solid var(--dorado); outline-offset: 2px; }
+
+/* foto adjunta: miniatura con una X para quitarla */
+.adjunto { order: -1; flex-basis: 100%; display: flex; align-items: center; gap: 10px; font-weight: 800; color: var(--azul-osc); font-size: .9rem; }
+.adjunto img { width: 56px; height: 56px; object-fit: cover; border-radius: 10px; border: 2px solid var(--dorado); }
+.adjunto button { font: inherit; font-weight: 800; border: none; background: #ffe3e7; color: #b3123e; border-radius: 999px; padding: 6px 12px; cursor: pointer; }
+
+/* lo que ve la camara: ventanita en la esquina del escenario */
+.camara { position: absolute; right: 14px; top: 10px; width: clamp(120px, 20vw, 220px); aspect-ratio: 4 / 3; object-fit: cover; border-radius: 16px; border: 3px solid var(--dorado); box-shadow: 0 6px 18px rgba(0, 0, 0, .35); transform: scaleX(-1); background: #0b1f4d; z-index: 2; }
+
+@media (max-width: 560px) {
+  .arriba { padding: 10px 10px 0; gap: 6px 10px; }
+  .estilos { padding: 3px 6px; gap: 4px; }
+  .vista { height: 30px; padding: 0 9px; font-size: .82rem; }
+  .charla { display: grid; gap: 6px; grid-template-columns: 1fr auto auto auto auto; grid-template-areas: "foto foto foto foto foto" "texto texto texto texto texto" "saludar adjuntar camara micro enviar"; }
+  .adjunto { grid-area: foto; }
+  .charla input { grid-area: texto; width: 100%; }
+  #b-hablar { grid-area: saludar; }
+  #b-adjuntar { grid-area: adjuntar; }
+  #b-camara { grid-area: camara; }
+  #b-micro { grid-area: micro; }
+  #b-enviar { grid-area: enviar; }
+  .boton.redondo { width: 42px; height: 42px; font-size: 1.1rem; }
+  .boton { padding: 10px 10px; }
+  .camara { width: 34vw; top: 6px; right: 8px; }
+  /* Filo entera en el celular: ocupa el ancho y se apoya abajo */
+  #ilustracion { width: 100%; height: auto; max-height: 100%; }
+}
+
+/* ---------- fondo: noche estrellada ---------- */
+body > *:not(.fondo) { position: relative; z-index: 1; }
+.fondo { position: fixed; inset: 0; z-index: 0; overflow: hidden; pointer-events: none; }
+.fondo i { position: absolute; display: block; }
+[data-fondo="c"] { background: linear-gradient(#0b1f4d, #1d3f8f 70%, #2c56b0); }
+.arriba h1 { color: #fff; }
+.escenario { overflow: hidden; }
+.estrella { left: var(--x); top: var(--y); width: var(--s); height: var(--s); border-radius: 50%; background: #fff; animation: titila var(--t) ease-in-out var(--d) infinite; }
+@keyframes titila { 50% { opacity: .2; } }
+.luna { right: 8%; top: 9%; width: 80px; height: 80px; border-radius: 50%; background: #fff6cf; box-shadow: 0 0 40px 10px rgba(255, 246, 207, .35); }
+.luciernaga { left: var(--x); top: var(--y); width: 7px; height: 7px; border-radius: 50%; background: #ffe066; box-shadow: 0 0 12px 4px rgba(255, 216, 74, .7); animation: vuela var(--t) ease-in-out var(--d) infinite alternate; }
+@keyframes vuela { 0% { transform: translate(0, 0); opacity: .2; } 50% { opacity: 1; } 100% { transform: translate(var(--mx), var(--my)); opacity: .3; } }
+@media (prefers-reduced-motion: reduce) { .fondo i { animation: none !important; } }
+
+/* aviso de estado arriba de Filo: Pensando… / Generando voz… / ¡Lista! */
+.estado { position: absolute; top: 12px; left: 50%; transform: translateX(-50%); z-index: 3; display: flex; align-items: center; gap: 10px; padding: 10px 18px; border-radius: 999px; background: #fff; color: var(--azul-osc); font-weight: 900; font-size: 1.05rem; white-space: nowrap; box-shadow: 0 6px 18px rgba(0, 0, 0, .3); border: 3px solid var(--azul); }
+.estado::before { content: ""; width: 16px; height: 16px; border-radius: 50%; border: 3px solid currentColor; border-right-color: transparent; animation: gira .8s linear infinite; }
+.estado[data-tipo="voz"] { border-color: var(--dorado); }
+.estado[data-tipo="lista"] { border-color: #16a34a; color: #15803d; }
+.estado[data-tipo="lista"]::before { content: "✓"; border: none; width: auto; height: auto; animation: none; font-size: 1.1rem; }
+@keyframes gira { to { transform: rotate(360deg); } }
+@media (max-width: 560px) { .estado { top: 6px; font-size: .95rem; padding: 8px 14px; } }
+@media (prefers-reduced-motion: reduce) { .estado::before { animation: none; } }
+
+/* ---------- lo que Filo muestra a su lado ---------- */
+.camara { left: 14px; right: auto; }
+.lado { position: absolute; right: 4%; top: 64px; z-index: 3; }
+.mini { font: inherit; font-weight: 900; width: 38px; height: 38px; border-radius: 50%; border: 2px solid var(--azul); background: #fff; color: var(--azul); cursor: pointer; flex: none; display: grid; place-items: center; }
+.mini:hover { background: #eaf1ff; }
+.mini.cerrar { position: absolute; top: -12px; right: -12px; box-shadow: 0 4px 10px rgba(0, 0, 0, .3); }
+.mq-btn { font: inherit; font-weight: 800; border-radius: 12px; padding: 10px 14px; cursor: pointer; border: 2px solid var(--azul); background: #fff; color: var(--azul); text-decoration: none; display: inline-block; }
+.mq-btn.lleno { background: var(--azul); color: #fff; }
+/* dibujo: foto instantanea que flota */
+.polaroid { margin: 0; background: #fff; padding: 10px 10px 14px; border-radius: 6px; width: clamp(170px, 24vw, 300px); box-shadow: 0 14px 30px rgba(0, 0, 0, .45); rotate: 4deg; display: grid; gap: 8px; cursor: zoom-in; animation: aparece .5s cubic-bezier(.2, .9, .3, 1.3); }
+.polaroid img { width: 100%; aspect-ratio: 1; object-fit: cover; display: block; }
+.polaroid figcaption { font-weight: 900; color: var(--azul-osc); text-align: center; }
+@keyframes aparece { from { opacity: 0; transform: translateY(20px) scale(.8); } }
+/* video */
+.tele { width: clamp(280px, 34vw, 560px); background: #000; border: 3px solid var(--dorado); border-radius: 16px; overflow: hidden; box-shadow: 0 14px 30px rgba(0, 0, 0, .5); }
+.tele #yt, .tele iframe { width: 100%; aspect-ratio: 16 / 9; display: block; border: 0; height: auto; }
+.tele-barra { display: flex; gap: 6px; align-items: center; padding: 6px 8px; background: #fff; }
+.tele-nombre { flex: 1; min-width: 0; font-weight: 800; font-size: .85rem; color: var(--azul-osc); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.tele-barra .mini { width: 34px; height: 34px; }
+body.video-grande .escenario { z-index: 6; }
+body.video-grande .lado { position: fixed; inset: 0; display: grid; place-items: center; background: rgba(5, 15, 45, .75); padding: 16px; }
+body.video-grande .tele { width: min(1100px, 100%, calc((100dvh - 120px) * 16 / 9)); }
+/* resultados de busqueda */
+.resultados { width: clamp(260px, 30vw, 420px); max-height: min(62vh, 520px); overflow: auto; background: #fff; border: 3px solid var(--dorado); border-radius: 16px; padding: 10px; box-shadow: 0 14px 30px rgba(0, 0, 0, .45); }
+.resultados-titulo { font-weight: 900; color: var(--azul-osc); margin: 2px 4px 8px; }
+.resultados ol { list-style: none; margin: 0; padding: 0; display: grid; gap: 6px; }
+.resultado { width: 100%; text-align: left; font: inherit; display: grid; gap: 2px; padding: 8px 10px; border: 2px solid #e3ecff; border-radius: 12px; background: #f7faff; cursor: pointer; color: #333; }
+.resultado:hover { border-color: var(--azul); }
+.resultado strong { color: var(--azul); font-size: .95rem; }
+.resultado small { color: #0f7a3a; font-weight: 700; }
+.resultado span { font-size: .85rem; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+/* ventana grande: dibujo en grande o pagina para leer */
+body > .grande { position: fixed; inset: 0; z-index: 8; background: rgba(5, 15, 45, .7); display: grid; place-items: center; padding: 16px; }
+.ventana { background: #fff; border: 4px solid var(--dorado); border-radius: 22px; padding: 14px; width: min(560px, 100%); max-height: calc(100dvh - 32px); display: grid; grid-template-rows: auto minmax(0, 1fr) auto; gap: 12px; box-shadow: 0 20px 50px rgba(0, 0, 0, .5); }
+.ventana-titulo { font-weight: 900; color: var(--azul-osc); }
+.ventana-img { width: 100%; max-height: 64vh; object-fit: contain; border-radius: 14px; min-height: 0; }
+.ventana-acciones { display: flex; gap: 8px; flex-wrap: wrap; justify-content: center; }
+.lectura { overflow: auto; white-space: pre-wrap; line-height: 1.55; color: #222; background: #f7faff; border-radius: 12px; padding: 12px 14px; min-height: 30vh; }
+.grande:has(.lectura) .ventana { width: min(820px, 100%); height: calc(100dvh - 32px); }
+@media (max-width: 560px) {
+  .camara { left: 8px; }
+  .lado { top: 52px; right: 3%; }
+  .lado[data-tipo="video"], .lado[data-tipo="resultados"] { left: 3%; right: 3%; display: flex; justify-content: center; }
+  .polaroid { width: 44vw; padding: 6px 6px 10px; }
+  .tele, .resultados { width: 100%; }
+  .resultados { max-height: 46vh; }
+}
+@media (prefers-reduced-motion: reduce) { .polaroid { animation: none; } }
+.estado[data-tipo="error"] { border-color: #e2283f; color: #b3123e; white-space: normal; max-width: min(520px, 92vw); }
+.estado[data-tipo="error"]::before { content: "!"; border: none; width: auto; height: auto; animation: none; font-size: 1.1rem; }
+
+/* ---------- distribucion: nada se cruza con las Filo ----------
+   Arriba queda una franja libre para el aviso («Pensando…») y el album.
+   La camara y lo que Filo muestra (dibujo, video, resultados) van en su propia columna (PC)
+   o en una fila encima de Filo (celular). Filo ocupa el resto, apoyada abajo. */
+.escenario, .ver-ambas .escenario { --franja: 62px; padding: var(--franja) 1vw 0; gap: 10px 2vw; place-items: stretch; grid-template-columns: minmax(0, 1fr); grid-template-rows: minmax(0, 1fr); }
+.ver-ambas .escenario { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); }
+.escenario > #ilustracion, .escenario > #filo { width: 100%; height: 100%; max-width: none; max-height: none; aspect-ratio: auto; min-height: 0; grid-row: -2 / -1; grid-column: 1 / -1; }
+.ver-ambas .escenario > #ilustracion { grid-column: 1; }
+.ver-ambas .escenario > #filo { grid-column: 2; }
+.estado { top: 8px; }
+.escenario > .camara { position: relative; inset: auto; transform: scaleX(-1); grid-row: 1; align-self: start; justify-self: center; width: clamp(150px, 18vw, 260px); }
+.escenario > .lado { position: relative; inset: auto; z-index: 3; align-self: center; justify-self: center; grid-row: 1 / -1; }
+.lado[data-tipo="dibujo"] { display: grid; justify-items: center; gap: 12px; }
+.polaroid { width: clamp(170px, 22vw, 290px); }
+.tele { width: clamp(280px, 36vw, 600px); }
+@media (min-width: 701px) {
+  .escenario:has(> .lado:not([hidden])), .escenario:has(> .camara:not([hidden])) { grid-template-columns: minmax(0, 1fr) auto; padding-right: 3vw; }
+  .ver-ambas .escenario:has(> .lado:not([hidden])), .ver-ambas .escenario:has(> .camara:not([hidden])) { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) auto; }
+  .escenario:has(> .lado:not([hidden])):has(> .camara:not([hidden])) { grid-template-rows: auto minmax(0, 1fr); }
+  .escenario:has(> .lado:not([hidden])) > #ilustracion, .escenario:has(> .lado:not([hidden])) > #filo,
+  .escenario:has(> .camara:not([hidden])) > #ilustracion, .escenario:has(> .camara:not([hidden])) > #filo { grid-column: 1; grid-row: 1 / -1; }
+  .ver-ambas .escenario:has(> .lado:not([hidden])) > #filo, .ver-ambas .escenario:has(> .camara:not([hidden])) > #filo { grid-column: 2; }
+  .escenario > .camara, .escenario > .lado { grid-column: -2 / -1; }
+  .escenario:has(> .camara:not([hidden])) > .lado { grid-row: 2; align-self: start; }
+  .escenario:has(> .camara:not([hidden])) .tele { width: clamp(260px, 30vw, 520px); }
+}
+@media (max-width: 700px) {
+  .escenario, .ver-ambas .escenario { --franja: 52px; padding: var(--franja) 3vw 0; gap: 6px 4px; }
+  .escenario:has(> .lado:not([hidden])), .escenario:has(> .camara:not([hidden])) { grid-template-rows: auto minmax(0, 1fr); }
+  .escenario:has(> .lado:not([hidden])):has(> .camara:not([hidden])) { grid-template-rows: auto auto minmax(0, 1fr); }
+  .escenario > .lado, .escenario > .camara { grid-row: 1; grid-column: 1 / -1; }
+  .escenario > .lado { width: 100%; }
+  .escenario > .camara { width: 40vw; justify-self: center; }
+  .escenario:has(> .camara:not([hidden])) > .lado { grid-row: 2; }
+  .lado[data-tipo="dibujo"] { grid-template-columns: auto auto; align-items: center; justify-content: center; }
+  .polaroid { width: 36vw; rotate: 2deg; }
+  .tele { width: 100%; }
+  .resultados { width: 100%; max-height: 32vh; }
+  .estado { top: 6px; max-width: calc(100vw - 120px); }
+  .estado[data-tipo="error"] { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; font-size: .85rem; }
+}
+.estado { z-index: 7; }
+.polaroid-acciones { display: flex; gap: 8px; justify-content: center; }
+.mini.borrar { border-color: #e2283f; color: #b3123e; }
+.mini.borrar.seguro { width: auto; padding: 0 12px; border-radius: 999px; background: #e2283f; color: #fff; font-size: .85rem; }
+.mq-btn.borrar { border-color: #e2283f; color: #b3123e; }
+.mq-btn.borrar.seguro { background: #e2283f; color: #fff; }
+
+/* album de dibujos: libro pequeno en la esquina; al tocarlo se abre en el centro */
+.album { position: absolute; left: 14px; bottom: 10px; z-index: 4; width: 76px; height: 76px; padding: 5px; border: 3px solid var(--dorado); border-radius: 8px; background: #fff; cursor: pointer; rotate: -5deg; box-shadow: 4px 4px 0 #fff, 4px 4px 0 2px #d9e3f7, 8px 8px 0 #fff, 8px 8px 0 2px #d9e3f7, 0 6px 16px rgba(0, 0, 0, .4); transition: rotate .2s, scale .2s; }
+.album:hover, .album:focus-visible { rotate: 0deg; scale: 1.06; }
+.album-hoja, .album-hoja img { display: block; width: 100%; height: 100%; object-fit: cover; border-radius: 4px; }
+.album-n { position: absolute; top: -10px; right: -10px; min-width: 26px; height: 26px; padding: 0 6px; border-radius: 999px; background: var(--dorado); color: var(--azul-osc); font-weight: 900; font-size: .9rem; display: grid; place-items: center; border: 2px solid #fff; }
+.ventana-album { width: min(760px, 100%); }
+.album-grilla { display: grid; grid-template-columns: repeat(auto-fill, minmax(170px, 1fr)); gap: 18px; overflow-y: auto; min-height: 0; padding: 4px; }
+.ficha { display: grid; gap: 6px; background: #f3f7ff; border-radius: 14px; padding: 8px; box-shadow: 0 3px 10px rgba(20, 40, 100, .15); min-width: 0; }
+.ficha-ver { padding: 0; border: 0; background: none; cursor: zoom-in; border-radius: 10px; overflow: hidden; }
+.ficha-ver img { display: block; width: 100%; aspect-ratio: 1; object-fit: cover; }
+.ficha b { color: var(--azul-osc); font-size: .9rem; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.ficha-fila { display: flex; gap: 6px; justify-content: space-between; align-items: center; }
+.mq-btn.chico { white-space: nowrap; padding: 6px 10px; font-size: .85rem; border-radius: 999px; }
+@media (max-width: 700px) {
+  .album { width: 54px; height: 54px; left: 8px; bottom: 6px; border-width: 2px; }
+  .album-n { min-width: 22px; height: 22px; font-size: .8rem; }
+  .album-grilla { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 14px; }
+  .ficha .mq-btn.chico { padding: 5px 8px; font-size: .8rem; }
+}
+
+/* album, diseño B: iconos sobre la foto y «Usar con Filo» abajo */
+.ficha { position: relative; }
+.ficha-sobre { position: absolute; left: 14px; right: 14px; top: 14px; display: flex; justify-content: space-between; pointer-events: none; }
+.ficha-sobre button { pointer-events: auto; }
+.mini.icono { width: 38px; height: 38px; border-radius: 50%; border: 2px solid #fff; box-shadow: 0 2px 8px rgba(0, 0, 0, .35); font-size: 1rem; display: grid; place-items: center; padding: 0; }
+.mini.icono.bajar { background: var(--azul); color: #fff; }
+.mini.icono.borrar { background: #e2283f; color: #fff; }
+.mini.icono.borrar.seguro { width: auto; padding: 0 10px; border-radius: 999px; font-size: .8rem; }
+.mq-btn.usar { width: 100%; background: var(--dorado); border-color: var(--dorado); color: var(--azul-osc); padding: 8px 10px; border-radius: 999px; font-size: .9rem; white-space: nowrap; }
+@media (max-width: 700px) { .mini.icono { width: 34px; height: 34px; } .mq-btn.usar { font-size: .8rem; padding: 7px 6px; } }
+
+/* album con muchos dibujos: la ventana tiene alto fijo y la grilla hace scroll (PC y celular) */
+.ventana-album { height: min(86dvh, 900px); }
+.album-grilla { overscroll-behavior: contain; align-content: start; -webkit-overflow-scrolling: touch; }
+.album-marca { grid-column: 1 / -1; height: 1px; }
+.ficha-ver img { background: #dde7fb; }  /* mientras carga la miniatura */
+
+/* album en la franja de arriba a la izquierda: no se cruza con Filo */
+.album { top: 6px; bottom: auto; left: 14px; width: 50px; height: 50px; padding: 3px; }
+.album-n { top: -6px; right: -14px; }
+@media (max-width: 700px) { .album { width: 40px; height: 40px; top: 6px; bottom: auto; left: 8px; border-width: 2px; padding: 2px; } }
+
+/* pregunta de eliminar: tapa toda la tarjeta, no se esconde sola */
+.polaroid { position: relative; }
+.confirmar { position: absolute; inset: 0; z-index: 5; border-radius: inherit; background: rgba(16, 32, 80, .88);
+  display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 10px; padding: 12px;
+  text-align: center; cursor: default; rotate: 0deg; animation: aparece-confirmar .15s ease-out; }
+.confirmar p { margin: 0; color: #fff; font-weight: 700; font-size: .95rem; line-height: 1.25; }
+.confirmar .mq-btn { width: min(100%, 150px); justify-content: center; }
+.confirmar .mq-btn.si { background: #e2283f; color: #fff; }
+.confirmar .mq-btn.no { background: #fff; color: var(--azul-osc); }
+@keyframes aparece-confirmar { from { opacity: 0; } }
+@media (prefers-reduced-motion: reduce) { .confirmar { animation: none; } }
+
+/* celular: la ✕ del panel no se sale por el borde de la pantalla */
+@media (max-width: 700px) { .mini.cerrar { top: -10px; right: -2px; } }

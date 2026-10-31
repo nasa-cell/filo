@@ -1,0 +1,49 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Filo</title>
+<link rel="stylesheet" href="estilos/estilos.css">
+<link rel="stylesheet" href="estilos/fondos.css">
+</head>
+<body data-estilo="A">
+<div class="fondo" id="fondo" aria-hidden="true"></div>
+<header class="arriba">
+  <h1>Filo</h1>
+  <div class="estilos" role="group" aria-label="Cómo ver a Filo">
+    <span class="rotulo">Ver:</span>
+    <button class="vista" data-vista="ilustracion" aria-pressed="true">Ilustración</button>
+    <button class="vista" data-vista="dibujo" aria-pressed="false">Dibujo</button>
+    <button class="vista" data-vista="ambas" aria-pressed="false">Las dos</button>
+  </div>
+</header>
+
+<main class="escenario">
+  <div id="ilustracion"></div>
+  <div id="filo" hidden></div>
+  <div class="estado" id="estado" role="status" aria-live="polite" hidden></div>
+  <video class="camara" id="camara" autoplay muted playsinline hidden></video>
+  <div class="lado" id="lado" hidden></div>
+  <button type="button" class="album" id="album" hidden title="Álbum de Filo: tus dibujos guardados" aria-label="Abrir el álbum de dibujos"><span class="album-hoja"><img id="album-tapa" alt=""></span><span class="album-n" id="album-n">0</span></button>
+</main>
+<div class="grande" id="grande" hidden></div>
+
+<form class="charla" id="charla" autocomplete="off">
+  <button class="boton suave" id="b-hablar" type="button">💬 Saludar</button>
+  <input id="mensaje" type="text" maxlength="300" placeholder="Escríbele algo a Filo…" aria-label="Mensaje para Filo">
+  <div class="adjunto" id="adjunto" hidden><img id="adjunto-img" alt="Foto para Filo"><span>Filo verá esta foto</span><button type="button" id="adjunto-quitar">✕ Quitar</button></div>
+  <input id="archivo" type="file" accept="image/*" hidden>
+  <button class="boton redondo" id="b-adjuntar" type="button" aria-label="Mostrarle una foto" title="Mostrarle una foto (también puedes arrastrarla o pegarla)">📎</button>
+  <button class="boton redondo" id="b-camara" type="button" aria-pressed="false" aria-label="Encender la cámara para que Filo vea" title="Encender la cámara para que Filo vea">📷</button>
+  <button class="boton redondo" id="b-micro" type="button" aria-pressed="false" aria-label="Hablarle con el micrófono" title="Hablarle con el micrófono">🎤</button>
+  <button class="boton" id="b-enviar" type="submit">Enviar</button>
+</form>
+<script src="codigo/fondo.js"></script>
+<script src="codigo/filo.js"></script>
+<script src="codigo/ilustracion.js"></script>
+<script src="codigo/acciones.js"></script>
+<script src="codigo/frases-filo.js"></script>
+<script src="codigo/conversacion.js"></script>
+</body>
+</html>

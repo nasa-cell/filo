@@ -1,0 +1,98 @@
+:root { --azul: #1d4ed8; --azul-osc: #0b1f4d; --dorado: #f5b301; font-family: "Nunito", "Segoe UI", system-ui, sans-serif; }
+* { box-sizing: border-box; }
+[hidden] { display: none !important; }
+html, body { margin: 0; height: 100%; overflow: hidden; }
+body { background: radial-gradient(circle at 50% 38%, #ffffff, #e3eeff 70%); display: grid; grid-template-rows: auto minmax(0, 1fr) auto auto; height: 100vh; height: 100dvh; }
+
+.arriba { display: flex; flex-wrap: wrap; gap: 8px 16px; align-items: center; padding: 12px 16px 0; }
+.arriba h1 { margin: 0; font-size: clamp(1.1rem, 2.4vw, 1.6rem); font-weight: 900; color: var(--azul-osc); }
+.estilos { display: flex; gap: 6px; align-items: center; background: #fff; border: 2px solid #cfe0ff; border-radius: 999px; padding: 4px 10px; }
+.rotulo { font-weight: 800; font-size: .85rem; color: var(--azul-osc); }
+.estilo { width: 34px; height: 34px; border-radius: 50%; border: 2px solid var(--azul); background: #fff; color: var(--azul); font-weight: 900; font-family: inherit; cursor: pointer; }
+.estilo[aria-pressed="true"] { background: var(--azul); color: #fff; }
+.nombre-estilo { font-size: .85rem; font-weight: 700; color: #5b6475; }
+
+.escenario { position: relative; min-height: 0; display: grid; place-items: end center; }
+#filo { height: 100%; max-width: 100%; aspect-ratio: 600 / 700; }
+#ilustracion { height: 100%; max-width: 100%; aspect-ratio: 1164 / 1024; }
+#ilustracion svg { width: 100%; height: 100%; display: block; }
+#filo svg { width: 100%; height: 100%; display: block; overflow: hidden; }
+.globo { position: absolute; top: 4%; left: 50%; transform: translateX(-50%); max-width: min(440px, 88vw); background: #fff; color: var(--azul-osc); font-weight: 800; font-size: 1.05rem; padding: 12px 18px; border-radius: 20px; border: 3px solid var(--dorado); box-shadow: 0 6px 18px rgba(29, 78, 216, .2); text-align: center; z-index: 2; }
+.globo::after { content: ""; position: absolute; bottom: -14px; left: 50%; transform: translateX(-50%); border: 12px solid transparent; border-top-color: var(--dorado); border-bottom: 0; }
+
+.acciones { display: flex; gap: 8px; flex-wrap: wrap; justify-content: center; padding: 10px; }
+.boton { font: inherit; font-weight: 800; font-size: .95rem; border: none; border-radius: 14px; padding: 11px 16px; cursor: pointer; background: var(--azul); color: #fff; box-shadow: 0 4px 12px rgba(29, 78, 216, .3); }
+.boton:hover { background: #1e40af; }
+.boton:active { transform: scale(.96); }
+
+/* ---------- colores del dibujo (estilo A: anime con linea oscura) ---------- */
+#filo { --linea: #3d2a1e; --grosor: 3px; --pelo: #f9eba9; --pelo-osc: #e8cd78; --piel: #ffeadf; --piel-osc: #f7cdbd; --vestido: #ffffff; --vestido-osc: #dfe9fa; --cinta: #58aef7; }
+.linea { stroke: var(--linea); stroke-width: var(--grosor); stroke-linejoin: round; }
+.pelo { fill: var(--pelo); }
+.pelo-1 { stop-color: var(--pelo); } .pelo-2 { stop-color: var(--pelo-osc); }
+.pelo-atras .pelo { fill: var(--pelo-osc); }
+.pelo-hebra { fill: none; stroke: #c9a24a; stroke-width: 2; stroke-linecap: round; opacity: .7; }
+.pelo-brillo { fill: none; stroke: #fffbe6; stroke-width: 7; stroke-linecap: round; stroke-linejoin: round; opacity: .9; }
+.piel { fill: var(--piel); }
+.piel-sombra { fill: var(--piel-osc); opacity: .85; }
+.vestido { fill: var(--vestido); }
+.vestido-sombra { fill: var(--vestido-osc); }
+.cinta { fill: var(--cinta); }
+.cinta-borde { stroke: var(--cinta); stroke-width: 9; stroke-linecap: round; }
+.ala-pluma { fill: #fffdf8; }
+.ala-detalle { fill: none; stroke: #c9d8f0; stroke-width: 2.5; stroke-linecap: round; }
+.blanco-ojo { fill: #ffffff; }
+.iris-1 { stop-color: #0a2a78; } .iris-2 { stop-color: #1f86ee; } .iris-3 { stop-color: #8fe0ff; }
+.iris-borde { stroke: #0a2a78; stroke-width: 2.5; }
+.pupila { fill: #0a2266; }
+.iris-luz { fill: #c8f3ff; opacity: .55; }
+.brillo { fill: #ffffff; }
+.sombra-parpado { fill: #0a1a50; opacity: .3; }
+.pestana { fill: #24160f; }
+.pestana-baja, .trazo-ojo { fill: none; stroke: #24160f; stroke-width: 3; stroke-linecap: round; }
+.trazo-ojo { stroke-width: 6; }
+.trazo-boca { fill: none; stroke: #7a2a2a; stroke-width: 3.5; stroke-linecap: round; }
+.boca-dentro { fill: #8a2232; stroke: #5a1520; stroke-width: 2; }
+.lengua { fill: #ff8a9a; }
+.colmillo { fill: #ffffff; }
+.rubor-rayas { fill: none; stroke: #e0566e; stroke-width: 2.5; stroke-linecap: round; opacity: .8; }
+.nariz { fill: none; stroke: #d99b88; stroke-width: 2.5; stroke-linecap: round; }
+.ceja { fill: none; stroke: #8a6a3a; stroke-width: 3; stroke-linecap: round; opacity: .75; }
+
+@media (max-width: 560px) {
+  .acciones { display: grid; grid-template-columns: repeat(3, 1fr); padding: 8px; gap: 6px; }
+  .boton { padding: 10px 6px; font-size: .85rem; }
+  .nombre-estilo { display: none; }
+}
+.cinta-fina { fill: none; stroke: var(--cinta); stroke-width: 5; stroke-linecap: round; }
+.pliegue { fill: none; stroke: #c3d3ee; stroke-width: 2.5; stroke-linecap: round; }
+.piel-pliegue { fill: none; stroke: #e9b9a8; stroke-width: 2.5; stroke-linecap: round; }
+.simbolo-brillo { fill: #ffd84a; stroke: #e0a400; stroke-width: 2; }
+.simbolo-linea { fill: #1d4ed8; }
+.simbolo-trazo { fill: none; stroke: #1d4ed8; stroke-width: 9; stroke-linecap: round; }
+.simbolo-punto { fill: #1d4ed8; }
+.simbolo-vena { fill: none; stroke: #e2283f; stroke-width: 7; stroke-linecap: round; }
+.simbolo-gota { fill: #bfe3ff; stroke: #4a90d9; stroke-width: 2.5; }
+.trazo-borde { fill: none; stroke: var(--linea); stroke-linecap: round; stroke-linejoin: round; }
+.trazo-piel { fill: none; stroke: var(--piel); stroke-linecap: round; stroke-linejoin: round; }
+.mano-linea { fill: none; stroke: #b9806b; stroke-width: 1.8; stroke-linecap: round; }
+.cinta-brillo { fill: none; stroke: #bfe2ff; stroke-width: 3; stroke-linecap: round; opacity: .8; }
+.pelo-sombra { fill: #e6c977; }
+.pelo-hondo { fill: #d4b25c; }
+.pelo-brillo-anillo { fill: #fffcea; opacity: .95; }
+.pelo-suelto { fill: none; stroke: #3d2a1e; stroke-width: 1.8; stroke-linecap: round; opacity: .8; }
+.pelo-contorno { fill: none; stroke: var(--linea); stroke-width: var(--grosor); stroke-linecap: round; stroke-linejoin: round; }
+.contorno-piel { fill: none; stroke: var(--linea); stroke-width: var(--grosor); stroke-linecap: round; }
+
+.vista { height: 34px; border-radius: 999px; border: 2px solid var(--azul); background: #fff; color: var(--azul); font: inherit; font-weight: 800; padding: 0 14px; cursor: pointer; }
+.vista[aria-pressed="true"] { background: var(--azul); color: #fff; }
+.charla { display: flex; gap: 8px; width: min(640px, calc(100% - 20px)); margin: 0 auto 12px; }
+.charla input { flex: 1; min-width: 0; font: inherit; font-size: 1rem; padding: 11px 14px; border: 2px solid #cfe0ff; border-radius: 14px; background: #fff; color: var(--azul-osc); }
+.charla input:focus { outline: none; border-color: var(--azul); }
+.boton:disabled { opacity: .55; cursor: wait; }
+
+/* las dos Filo lado a lado para comparar */
+.ver-ambas .escenario { grid-template-columns: 1fr 1fr; place-items: end center; gap: 10px; padding: 0 10px; }
+.ver-ambas #ilustracion, .ver-ambas #filo { height: 100%; width: auto; max-width: 100%; min-height: 0; }
+.ver-ambas .escenario { overflow: hidden; }
+@media (max-width: 700px) { .ver-ambas .escenario { grid-template-columns: 1fr 1fr; gap: 4px; } }

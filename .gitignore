@@ -1,0 +1,13 @@
+# archivos de Python
+__pycache__/
+*.pyc
+
+# datos del usuario: dibujos generados y memoria local (no se publican)
+dibujos/
+datos_memoria/
+
+# notas internas del proyecto
+contexto/
+
+# voces grabadas de Filo (se crean con grabar_voces.py)
+voces/

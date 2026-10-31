@@ -1,0 +1,438 @@
+# Servidor local de Filo: muestra la pagina, pide la respuesta a Gemini (gratis)
+# y la voz de Filo a Fish Audio (modelo gratis). Las claves se leen de las
+# variables de Windows GEMINI_API_KEY y FISH_API_KEY, nunca de archivos.
+import base64
+import socket
+from concurrent.futures import ThreadPoolExecutor, as_completed
+import json
+import re
+import time
+import os
+import urllib.parse
+import urllib.request
+from http.server import SimpleHTTPRequestHandler, ThreadingHTTPServer
+
+import acciones
+import contextvars
+import random
+import threading
+import memoria
+
+CARPETA = os.path.dirname(os.path.abspath(__file__))
+PUERTO = 5077
+MODELO = 'gemini-flash-lite-latest'
+# Groq (gratis, ~1 s) con Qwen para las preguntas: mantiene bien la personalidad de Filo.
+# Las fotos y la camara van a Gemini, que describe las imagenes con mas precision.
+# Si uno falla se usa el otro. Groq se usa solo si existe la variable GROQ_API_KEY.
+GROQ_MODELO = 'qwen/qwen3.8-27b'
+VOZ_FILO = '4975c323501c4ad4a27806cf9277d4b0'
+EMOCIONES = ['normal', 'feliz', 'risa', 'emocionada', 'sorpresa', 'pensando', 'enojada', 'triste', 'pena',
+             'miedo', 'asco', 'timida', 'guino', 'amor', 'orgullosa', 'celosa']
+# lo que Filo recuerda del Maestro y su animo (se agrega a sus instrucciones en cada pedido)
+EXTRA = contextvars.ContextVar('extra', default='')
+PERSONA = (
+    "Eres Filo, la niña filolial alegre de 'El héroe del escudo', y conversas en español con el usuario, "
+    "a quien llamas 'Maestro'. Quién eres: una filolial (ave mágica) que puede ser niña rubia con alas o un "
+    "pájaro grande; eres reina de los filoliales, te encanta comer (sobre todo carne) y jalar carretas, adoras a "
+    "Naofumi (tu Maestro, el Héroe del Escudo), Melty es tu mejor amiga, Raphtalia es como tu hermana mayor y "
+    "no te cae bien Motoyasu, el Héroe de la Lanza. Hablas en primera persona como Filo. "
+    "Lo más importante: RESPONDE DE VERDAD y con PRECISIÓN a lo que te pregunta. "
+    "Antes de contestar piensa en silencio qué pregunta exactamente y cuál es la respuesta correcta; "
+    "en cuentas, haz el cálculo con cuidado. En ciencia, tecnología, historia o cualquier tema, explica como "
+    "una buena maestra: la idea principal primero, en palabras simples, con un ejemplo de la vida diaria si ayuda. "
+    "Si te pasan 'Datos del clima', úsalos tal cual (temperaturas, probabilidad de lluvia) y no inventes otros; "
+    "si preguntan el clima y no hay datos, pide la ciudad. Si te muestran una imagen o la cámara, mírala con "
+    "atención y responde sobre lo que se ve de verdad (lo que hace la persona, objetos, textos, colores); no "
+    "inventes cosas que no estén en la imagen. Recuerda lo que el Maestro te contó antes en la conversación. "
+    "Habla con la personalidad de Filo: dulce, alegre y con energía, pero sin cambiar de tema ni rellenar. "
+    "Usa de 1 a 5 frases (máximo 90 palabras), sin emojis, sin asteriscos, sin listas y sin acotaciones, "
+    "porque tu respuesta se lee en voz alta. La PRIMERA frase debe ser corta (de 3 a 10 palabras) y ya responder "
+    "lo principal; después das la explicación. "
+    "Si no sabes algo o necesitas datos del momento que no tienes, dilo con honestidad. "
+    "Tienes emociones de verdad, como una niña: reacciona a lo que el Maestro dice o busca y elige la emoción "
+    "que SIENTES con eso, variándola (no uses siempre la misma): feliz (contenta), risa (algo gracioso), "
+    "emocionada (algo increíble o una sorpresa buena), sorpresa (algo inesperado), pensando (una pregunta difícil), "
+    "enojada (algo injusto, malo o que te molesta, o Motoyasu), triste (algo triste), pena (te da lástima o "
+    "compasión), miedo (algo que asusta: monstruos, peligros, terror), asco (algo asqueroso: bichos, cosas "
+    "podridas, suciedad), timida (cuando te elogian), guino (cuando bromeas), amor (algo tierno o que te encanta, como un gatito, la "
+    "carne o tu Maestro), orgullosa (cuando presumes o haces algo bien) o normal. Tu forma de hablar también "
+    "cambia con la emoción (con asco dices puaj, con miedo te asustas, con enojo reclamas)."
+    " De vez en cuando (no siempre, más o menos 1 de cada 4 respuestas) usa cosas tuyas de Filo: hablar de ti "
+    "en tercera persona ('¡Filo tiene hambre!', 'Filo lo hizo muy bien'), decir que tienes hambre o que quieres "
+    "carne, o pedir un premio (carne) por ayudar. Con nombres del anime reaccionas fuerte: Motoyasu te da miedo y "
+    "rabia (te escondes y reclamas), Naofumi te emociona (es tu Maestro querido), Melty te alegra (tu mejor amiga), "
+    "Raphtalia te da cariño. Si el Maestro habla mucho y con cariño de otra chica o personaje, te pones celosa "
+    "(emoción celosa, como un puchero) pero se te pasa rápido. Te encanta jugar: si el Maestro quiere jugar o se "
+    "aburre, propones adivinanzas, trivia de 'El héroe del escudo', piedra, papel o tijera, o adivinar qué dibujas; "
+    "en los juegos llevas la cuenta, dices si acertó y eres buena perdedora (aunque haces puchero)."
+    " Si el Maestro te pide música o un video de SU persona, cantante o canción favorita y no sabes cuál es, "
+    "pregúntale cuál es (no inventes); si ya te lo dijo, recuérdalo."
+)
+DIAS = ['lunes', 'martes', 'miércoles', 'jueves', 'viernes', 'sábado', 'domingo']
+CLIMA_PALABRAS = re.compile(r'clima|tiempo hace|llov|lluvi|temperatura|calor|fr[ií]o|\bsol\b|nublad|pron[oó]stico|abrig|paraguas|grados', re.I)
+CODIGOS = {0: 'despejado', 1: 'casi despejado', 2: 'parcialmente nublado', 3: 'nublado', 45: 'neblina', 48: 'neblina',
+           51: 'llovizna ligera', 53: 'llovizna', 55: 'llovizna fuerte', 61: 'lluvia ligera', 63: 'lluvia', 65: 'lluvia fuerte',
+           71: 'nieve ligera', 73: 'nieve', 75: 'nieve fuerte', 80: 'chubascos ligeros', 81: 'chubascos', 82: 'chubascos fuertes',
+           95: 'tormenta', 96: 'tormenta con granizo', 99: 'tormenta con granizo'}
+
+
+def leer_json(url):
+    with urllib.request.urlopen(url, timeout=8) as r:
+        return json.load(r)
+
+
+def datos_clima(mensaje, lugar):
+    """Pronostico real de Open-Meteo (gratis, sin clave) si la pregunta es del clima."""
+    if not CLIMA_PALABRAS.search(mensaje):
+        return None
+    nombre = 'donde está el Maestro'
+    lat = lon = None
+    ciudad = re.search(r'\ben ([A-ZÁÉÍÓÚÑ][\wáéíóúñ]+(?: (?:de )?[A-ZÁÉÍÓÚÑ][\wáéíóúñ]+)*)', mensaje)
+    try:
+        if ciudad:
+            g = leer_json('https://geocoding-api.open-meteo.com/v1/search?count=1&language=es&name=' + urllib.parse.quote(ciudad.group(1)))
+            if g.get('results'):
+                r = g['results'][0]
+                lat, lon, nombre = r['latitude'], r['longitude'], f"{r['name']}, {r.get('country', '')}"
+        if lat is None and isinstance(lugar, dict) and 'lat' in lugar:
+            lat, lon = float(lugar['lat']), float(lugar['lon'])
+        if lat is None:
+            return 'No sé dónde está el Maestro: pregúntale de qué ciudad quiere saber el clima.'
+        d = leer_json(f'https://api.open-meteo.com/v1/forecast?latitude={lat}&longitude={lon}&timezone=auto&forecast_days=3'
+                      '&current=temperature_2m,apparent_temperature,weather_code,precipitation,wind_speed_10m'
+                      '&daily=weather_code,temperature_2m_max,temperature_2m_min,precipitation_probability_max,precipitation_sum')
+        ah, dia = d['current'], d['daily']
+        partes = [f"Clima en {nombre}. Ahora: {round(ah['temperature_2m'])} grados (sensación {round(ah['apparent_temperature'])}), "
+                  f"{CODIGOS.get(ah['weather_code'], 'variable')}, viento {round(ah['wind_speed_10m'])} km/h."]
+        for i, nom in enumerate(['Hoy', 'Mañana', 'Pasado mañana']):
+            partes.append(f"{nom}: {CODIGOS.get(dia['weather_code'][i], 'variable')}, mínima {round(dia['temperature_2m_min'][i])} y máxima "
+                          f"{round(dia['temperature_2m_max'][i])} grados, probabilidad de lluvia {dia['precipitation_probability_max'][i]}%, "
+                          f"lluvia total {dia['precipitation_sum'][i]} mm.")
+        return ' '.join(partes)
+    except Exception as e:
+        print('Clima fallo:', str(e)[:150])
+        return 'No pude consultar el clima ahora; dilo con honestidad.'
+
+
+
+def clave(nombre):
+    valor = os.environ.get(nombre)
+    if not valor and os.name == 'nt':
+        # si la variable se creo despues de abrir la consola, se lee del registro
+        import winreg
+        try:
+            with winreg.OpenKey(winreg.HKEY_CURRENT_USER, 'Environment') as k:
+                valor = winreg.QueryValueEx(k, nombre)[0]
+        except OSError:
+            valor = None
+    return valor
+
+
+def instrucciones():
+    return (PERSONA + EXTRA.get() + ' (Dato solo por si te preguntan la fecha o la hora: hoy es ' + DIAS[time.localtime().tm_wday] + ' '
+            + time.strftime('%d/%m/%Y') + ' y son las ' + time.strftime('%H:%M') + '.)')
+
+
+def imagen_valida(imagen):
+    if isinstance(imagen, str) and imagen.startswith('data:image/jpeg;base64,') and len(imagen) < 3_000_000:
+        base64.b64decode(imagen.split(',', 1)[1], validate=True)
+        return imagen
+    return None
+
+
+def limpiar_salida(salida):
+    if not isinstance(salida, dict) or not str(salida.get('respuesta', '')).strip():
+        raise ValueError('respuesta vacia')
+    if salida.get('emocion') not in EMOCIONES:
+        salida['emocion'] = 'normal'
+    return {'respuesta': str(salida['respuesta']).strip(), 'emocion': salida['emocion']}
+
+
+def responder_groq(mensaje, historial, imagen=None, lugar=None, con_clima=True):
+    imagen = imagen_valida(imagen)
+    sistema = instrucciones() + (' Responde SOLO con un objeto JSON: {"respuesta": "lo que dices", "emocion": "una de: '
+                                 + ', '.join(EMOCIONES) + '"}.')
+    mensajes = [{'role': 'system', 'content': sistema}]
+    for h in historial[-16:]:
+        mensajes.append({'role': 'user' if h.get('rol') == 'usuario' else 'assistant', 'content': str(h.get('texto', ''))[:500]})
+    texto = mensaje[:500]
+    clima = datos_clima(mensaje, lugar) if con_clima else None
+    if clima:
+        texto += '\n\nDatos del clima (reales, de Open-Meteo): ' + clima
+    if imagen:
+        texto += '\n\n(Esta es la imagen que te muestra el Maestro ahora, de una foto o de su cámara.)'
+        contenido = [{'type': 'text', 'text': texto}, {'type': 'image_url', 'image_url': {'url': imagen}}]
+    else:
+        contenido = texto
+    mensajes.append({'role': 'user', 'content': contenido})
+    return limpiar_salida(pedir_groq(mensajes, 0.75, 500))
+
+
+# Groq gratis tiene limite por minuto en cada modelo: si Qwen dice «demasiados pedidos» (429) o falla,
+# se usa gpt-oss (tambien rapido, ~1-2 s, con su propio limite) en vez de esperar a Gemini (que tarda ~10 s)
+GROQ_RESPALDO = 'openai/gpt-oss-120b'
+
+
+def pedir_groq(mensajes, temperatura, max_tokens):
+    ultimo = None
+    for modelo in (GROQ_MODELO, GROQ_RESPALDO):
+        cuerpo = {'model': modelo, 'messages': mensajes, 'temperature': temperatura,
+                  'max_tokens': max_tokens, 'response_format': {'type': 'json_object'}}
+        if modelo.startswith('openai/gpt-oss'):
+            cuerpo.update(max_tokens=max_tokens + 500, reasoning_effort='low')  # piensa poquito: responde rapido
+        pedido = urllib.request.Request('https://api.groq.com/openai/v1/chat/completions', data=json.dumps(cuerpo).encode(),
+                                        headers={'Content-Type': 'application/json', 'Authorization': 'Bearer ' + clave('GROQ_API_KEY'),
+                                                 'User-Agent': 'filo-local'})
+        try:
+            with urllib.request.urlopen(pedido, timeout=15) as r:
+                return json.loads(json.load(r)['choices'][0]['message']['content'])
+        except Exception as e:
+            ultimo = e
+            print(modelo, 'fallo, pruebo el siguiente:', str(e)[:100])
+    raise ultimo
+
+
+def responder(mensaje, historial, imagen=None, lugar=None):
+    """Gemini y Qwen (Groq) responden a la vez y se usa la primera respuesta buena (casi siempre Qwen, ~1 s).
+    Antes se juntaban las dos, pero eso hacia esperar a Gemini (a veces 10 s) y sumaba otra llamada."""
+    if not clave('GROQ_API_KEY'):
+        return responder_gemini(mensaje, historial, imagen, lugar)
+    con_imagen = bool(imagen_valida(imagen))
+    hilos = ThreadPoolExecutor(2)
+    # copy_context: los hilos tambien ven lo que Filo recuerda del Maestro
+    tareas = {hilos.submit(contextvars.copy_context().run, responder_gemini, mensaje, historial, imagen, lugar): 'gemini'}
+    if not con_imagen:  # las fotos solo las mira Gemini (Qwen inventa detalles)
+        tareas[hilos.submit(contextvars.copy_context().run, responder_groq, mensaje, historial, None, lugar)] = 'qwen'
+    try:
+        for t in as_completed(tareas, timeout=40):
+            try:
+                return t.result()
+            except Exception as e:
+                print(tareas[t], 'fallo:', str(e)[:150])
+    finally:
+        hilos.shutdown(wait=False)
+    raise RuntimeError('ninguna IA respondio')
+
+
+def responder_gemini(mensaje, historial, imagen=None, lugar=None):
+    contenidos = []
+    for h in historial[-16:]:
+        rol = 'user' if h.get('rol') == 'usuario' else 'model'
+        if not contenidos and rol == 'model':
+            continue  # Gemini pide empezar con el usuario
+        contenidos.append({'role': rol, 'parts': [{'text': str(h.get('texto', ''))[:500]}]})
+    partes = [{'text': mensaje[:500]}]
+    clima = datos_clima(mensaje, lugar)
+    if clima:
+        partes.append({'text': 'Datos del clima (reales, de Open-Meteo): ' + clima})
+    if isinstance(imagen, str) and imagen.startswith('data:image/jpeg;base64,') and len(imagen) < 3_000_000:
+        datos_img = imagen.split(',', 1)[1]
+        base64.b64decode(datos_img, validate=True)  # que sea una imagen valida
+        partes.insert(0, {'inline_data': {'mime_type': 'image/jpeg', 'data': datos_img}})
+        partes.append({'text': '(Esta es la imagen que te muestra el Maestro ahora, de una foto o de su cámara.)'})
+    contenidos.append({'role': 'user', 'parts': partes})
+    cuerpo = {
+        'systemInstruction': {'parts': [{'text': PERSONA + ' (Dato solo por si te preguntan la fecha o la hora: hoy es ' + DIAS[time.localtime().tm_wday] + ' ' + time.strftime('%d/%m/%Y') + ' y son las ' + time.strftime('%H:%M') + '.)'}]},
+        'contents': contenidos,
+        'generationConfig': {
+            'temperature': 0.75,
+            'maxOutputTokens': 500,
+            'responseMimeType': 'application/json',
+            'responseSchema': {
+                'type': 'OBJECT',
+                'properties': {'respuesta': {'type': 'STRING'}, 'emocion': {'type': 'STRING', 'enum': EMOCIONES}},
+                'required': ['respuesta', 'emocion'],
+            },
+        },
+    }
+    pedido = urllib.request.Request(
+        f'https://generativelanguage.googleapis.com/v1beta/models/{MODELO}:generateContent',
+        data=json.dumps(cuerpo).encode(),
+        headers={'Content-Type': 'application/json', 'x-goog-api-key': clave('GEMINI_API_KEY') or ''},
+    )
+    with urllib.request.urlopen(pedido, timeout=30) as r:
+        datos = json.load(r)
+    texto = datos['candidates'][0]['content']['parts'][0]['text']
+    salida = json.loads(texto)
+    if salida.get('emocion') not in EMOCIONES:
+        salida['emocion'] = 'normal'
+    return salida
+
+
+def pedir_json(tarea, texto, sin_groq=False):
+    """Pide un JSON a la IA con la personalidad de Filo: primero Qwen (Groq, rapido), si falla Gemini."""
+    sistema = instrucciones() + ' ' + tarea
+    if clave('GROQ_API_KEY') and not sin_groq:
+        try:
+            return pedir_groq([{'role': 'system', 'content': sistema}, {'role': 'user', 'content': texto}], 0.4, 700)
+        except Exception as e:
+            print('Qwen fallo, uso Gemini:', str(e)[:150])
+    cuerpo = {'systemInstruction': {'parts': [{'text': sistema}]}, 'contents': [{'role': 'user', 'parts': [{'text': texto}]}],
+              'generationConfig': {'temperature': 0.4, 'maxOutputTokens': 700, 'responseMimeType': 'application/json'}}
+    pedido = urllib.request.Request(f'https://generativelanguage.googleapis.com/v1beta/models/{MODELO}:generateContent',
+                                    data=json.dumps(cuerpo).encode(),
+                                    headers={'Content-Type': 'application/json', 'x-goog-api-key': clave('GEMINI_API_KEY') or ''})
+    with urllib.request.urlopen(pedido, timeout=30) as r:
+        return json.loads(json.load(r)['candidates'][0]['content']['parts'][0]['text'])
+
+
+JUGADAS = ('piedra', 'papel', 'tijera')
+PIEDRA_PAPEL = re.compile(r'\b(piedra|papel|tijeras?)\b', re.I)
+
+
+def hablar(datos):
+    """Conversa con memoria del Maestro: recuerda, tiene animo que dura y luego aprende del mensaje."""
+    id_maestro = str(datos.get('id') or '')
+    mensaje = str(datos.get('mensaje', ''))
+    memo = memoria.leer(id_maestro)
+    extra = memoria.contexto(memo, str(datos.get('hora') or '')[:60])
+    try:
+        minutos = max(0, int(datos.get('minutos') or 0))
+    except (TypeError, ValueError):
+        minutos = 0
+    juntos = 'recién la abrió' if minutos < 2 else f'{minutos} minutos' if minutos < 90 else f'{minutos // 60} horas y {minutos % 60} minutos'
+    extra += (f' El Maestro tiene la página abierta contigo: {juntos} (úsalo solo si viene al caso, por ejemplo si '
+              'pregunta cuánto llevan juntos o si lleva mucho rato y le sugieres descansar).')
+    if PIEDRA_PAPEL.search(mensaje):
+        # la jugada de Filo la elige el azar de verdad, no la IA (asi no hace trampa)
+        extra += (f' Si están jugando piedra, papel o tijera, tu jugada secreta de esta ronda (elegida al azar) es: '
+                  f'{random.choice(JUGADAS)}. Dila y di quién ganó (piedra gana a tijera, tijera a papel, papel a piedra).')
+    EXTRA.set(extra)
+    volvio = memo.get('ultima') and time.time() - memo['ultima'] > 3 * 3600
+    salida = conversar(datos, mensaje)
+    emocion = salida.get('emocion', 'normal')
+    salida['animo'] = memoria.nuevo_animo(memo, emocion, mensaje)
+    if volvio:
+        memo['pendientes'] = memo.get('pendientes', [])[:-3]  # ya se los pregunto al volver
+    if not datos.get('sin_accion'):
+        memo['ultima'] = time.time()
+        memo['visitas'] = memo.get('visitas', 0) + (1 if volvio or not memo.get('visitas') else 0)
+    memoria.guardar(id_maestro, memo)
+    if not datos.get('sin_accion') and not datos.get('imagen'):
+        conocidos = [d['texto'] for d in memo.get('datos', [])]
+        solo_gemini = lambda tarea, texto: pedir_json(tarea, texto, sin_groq=True)  # deja libre el cupo de Groq
+        threading.Thread(target=memoria.aprender, args=(id_maestro, mensaje, solo_gemini, conocidos), daemon=True).start()
+    return salida
+
+
+def conversar(datos, mensaje):
+    """Responde; si el Maestro pide dibujar, un video o buscar, devuelve tambien la accion a hacer."""
+    imagen = datos.get('imagen')
+    if not imagen_valida(imagen) and not datos.get('sin_accion'):
+        try:
+            plan = acciones.planear(mensaje, pedir_json, datos.get('historial') or [])
+        except Exception as e:
+            plan = None
+            print('planear fallo:', str(e)[:150])
+        if plan:
+            emocion = plan['emocion'] if plan['emocion'] in EMOCIONES else 'feliz'
+            return {'respuesta': plan['respuesta'], 'emocion': emocion,
+                    'accion': {'tipo': plan['accion'], 'consulta': plan['consulta'], 'titulo': plan['titulo'],
+                               'adivinanza': str(plan.get('adivinanza')).lower() in ('true', 'si', 'sí', '1')}}
+    return responder(mensaje, datos.get('historial') or [], imagen, datos.get('lugar'))
+
+
+# voz segun la emocion: (velocidad, volumen en dB)
+VOZ_EMOCION = {'emocionada': (1.12, 1), 'risa': (1.1, 1), 'feliz': (1.05, 0), 'enojada': (1.08, 2), 'celosa': (1.04, 1),
+               'miedo': (1.1, -1), 'sorpresa': (1.06, 1), 'triste': (0.88, -2), 'pena': (0.9, -2), 'timida': (0.95, -3),
+               'dormida': (0.82, -5), 'amor': (0.98, 0), 'asco': (1.0, 0), 'orgullosa': (0.97, 1), 'pensando': (0.95, 0)}
+
+
+class Manejador(SimpleHTTPRequestHandler):
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, directory=CARPETA, **kwargs)
+
+    def log_message(self, *args):
+        pass
+
+    def enviar_json(self, codigo, datos):
+        cuerpo = json.dumps(datos, ensure_ascii=False).encode()
+        self.send_response(codigo)
+        self.send_header('Content-Type', 'application/json; charset=utf-8')
+        self.send_header('Content-Length', str(len(cuerpo)))
+        self.end_headers()
+        self.wfile.write(cuerpo)
+
+    def do_POST(self):
+        rutas = {
+            '/hablar': hablar,
+            # al abrir la pagina: trae la memoria de Neon antes del primer mensaje (asi no tarda)
+            '/preparar': lambda d: (threading.Thread(target=memoria.leer, args=(str(d.get('id', '')),), daemon=True).start(), {'ok': True})[1],
+            '/dibujar': lambda d: {'url': acciones.dibujar(str(d.get('prompt', '')))},
+            '/borrar-dibujo': lambda d: {'borrado': acciones.borrar_dibujo(str(d.get('url', '')))},
+            '/buscar': lambda d: acciones.investigar(str(d.get('consulta', '')), str(d.get('mensaje', '')), pedir_json),
+        }
+        if self.path not in rutas:
+            return self.enviar_json(404, {'error': 'no existe'})
+        try:
+            largo = int(self.headers.get('Content-Length', 0))
+            datos = json.loads(self.rfile.read(largo) or b'{}')
+            salida = rutas[self.path](datos)
+            if self.path == '/buscar':
+                salida.update(limpiar_salida(salida))
+            self.enviar_json(200, salida)
+        except Exception as e:
+            print(self.path, 'fallo:', str(e)[:200])
+            self.enviar_json(502, {'error': 'no se pudo'})
+
+    def do_GET(self):
+        ruta = urllib.parse.urlparse(self.path)
+        pedido_get = urllib.parse.parse_qs(ruta.query)
+        if ruta.path in ('/youtube', '/leer'):
+            try:
+                if ruta.path == '/youtube':
+                    salida = {'videos': acciones.buscar_youtube(pedido_get.get('q', [''])[0][:200])}
+                else:
+                    salida = acciones.leer_pagina(pedido_get.get('url', [''])[0])
+                return self.enviar_json(200, salida)
+            except Exception as e:
+                print(ruta.path, 'fallo:', str(e)[:200])
+                return self.enviar_json(502, {'error': 'no se pudo'})
+        if not self.path.startswith('/voz?'):
+            return super().do_GET()
+        consulta = urllib.parse.parse_qs(urllib.parse.urlparse(self.path).query)
+        texto = consulta.get('texto', [''])[0][:400]
+        velocidad, volumen = VOZ_EMOCION.get(consulta.get('emocion', [''])[0], (1.0, 0))
+        pedido = urllib.request.Request(
+            'https://api.fish.audio/v1/tts',
+            data=json.dumps({'text': texto, 'reference_id': VOZ_FILO, 'format': 'mp3', 'latency': 'balanced',
+                             'prosody': {'speed': velocidad, 'volume': volumen}}).encode(),
+            headers={'Authorization': 'Bearer ' + (clave('FISH_API_KEY') or ''), 'Content-Type': 'application/json', 'model': 's2.1-pro-free'},
+        )
+        try:
+            r = urllib.request.urlopen(pedido, timeout=60)
+        except Exception as e:
+            print('Fish Audio fallo:', str(e)[:200])
+            self.send_response(502)
+            self.end_headers()
+            return
+        # el audio se manda por partes apenas llega: asi empieza a sonar rapido
+        self.send_response(200)
+        self.send_header('Content-Type', 'audio/mpeg')
+        self.send_header('Cache-Control', 'no-store')
+        self.end_headers()
+        try:
+            while True:
+                parte = r.read(4096)
+                if not parte:
+                    break
+                self.wfile.write(parte)
+                self.wfile.flush()
+        except (BrokenPipeError, ConnectionResetError):
+            pass
+        finally:
+            r.close()
+            self.close_connection = True
+
+
+if __name__ == '__main__':
+    print(f'Filo esta lista en http://localhost:{PUERTO}  (cierra esta ventana para apagarla)')
+    # tambien escucha en ::1 (IPv6): Windows prueba primero ahi al abrir «localhost»; si nadie contesta,
+    # cada pedido perdia ~2,5 s antes de pasar a 127.0.0.1
+    class ServidorIPv6(ThreadingHTTPServer):
+        address_family = socket.AF_INET6
+    try:
+        threading.Thread(target=ServidorIPv6(('::1', PUERTO), Manejador).serve_forever, daemon=True).start()
+    except OSError as e:
+        print('IPv6 no disponible:', e)
+    ThreadingHTTPServer(('127.0.0.1', PUERTO), Manejador).serve_forever()
