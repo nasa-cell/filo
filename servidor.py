@@ -264,16 +264,16 @@ def responder_gemini(mensaje, historial, imagen=None, lugar=None):
     return salida
 
 
-def pedir_json(tarea, texto, sin_groq=False):
+def pedir_json(tarea, texto, sin_groq=False, max_tokens=700):
     """Pide un JSON a la IA con la personalidad de Filo: primero Qwen (Groq, rapido), si falla Gemini."""
     sistema = instrucciones() + ' ' + tarea
     if clave('GROQ_API_KEY') and not sin_groq:
         try:
-            return pedir_groq([{'role': 'system', 'content': sistema}, {'role': 'user', 'content': texto}], 0.4, 700)
+            return pedir_groq([{'role': 'system', 'content': sistema}, {'role': 'user', 'content': texto}], 0.4, max_tokens)
         except Exception as e:
             print('Qwen fallo, uso Gemini:', str(e)[:150])
     cuerpo = {'systemInstruction': {'parts': [{'text': sistema}]}, 'contents': [{'role': 'user', 'parts': [{'text': texto}]}],
-              'generationConfig': {'temperature': 0.4, 'maxOutputTokens': 700, 'responseMimeType': 'application/json'}}
+              'generationConfig': {'temperature': 0.4, 'maxOutputTokens': max_tokens, 'responseMimeType': 'application/json'}}
     pedido = urllib.request.Request(f'https://generativelanguage.googleapis.com/v1beta/models/{MODELO}:generateContent',
                                     data=json.dumps(cuerpo).encode(),
                                     headers={'Content-Type': 'application/json', 'x-goog-api-key': clave('GEMINI_API_KEY') or ''})
@@ -283,6 +283,19 @@ def pedir_json(tarea, texto, sin_groq=False):
 
 JUGADAS = ('piedra', 'papel', 'tijera')
 PIEDRA_PAPEL = re.compile(r'\b(piedra|papel|tijeras?)\b', re.I)
+
+
+def es_su_cumple(memo, hora):
+    """True si hoy es el cumpleaños del Maestro (lo busca en lo que Filo recuerda, por ejemplo «cumple el 5 de mayo»)."""
+    hoy = re.search(r'(\d{1,2}) de (\w+)', hora)
+    if not hoy:
+        return False
+    for dato in memo.get('datos', []):
+        texto = str(dato.get('texto', '')).lower()
+        fecha = re.search(r'cumple\w*\D{0,40}?(\d{1,2}) de (\w+)', texto)
+        if fecha and int(fecha.group(1)) == int(hoy.group(1)) and fecha.group(2) == hoy.group(2).lower():
+            return True
+    return False
 
 
 def hablar(datos):
@@ -312,6 +325,7 @@ def hablar(datos):
     if not datos.get('sin_accion'):
         memo['ultima'] = time.time()
         memo['visitas'] = memo.get('visitas', 0) + (1 if volvio or not memo.get('visitas') else 0)
+    salida['cumple'] = es_su_cumple(memo, str(datos.get('hora') or ''))
     memoria.guardar(id_maestro, memo)
     if not datos.get('sin_accion') and not datos.get('imagen'):
         conocidos = [d['texto'] for d in memo.get('datos', [])]
@@ -375,6 +389,8 @@ def guardar_album(datos):
 
 
 class Manejador(SimpleHTTPRequestHandler):
+    extensions_map = {**SimpleHTTPRequestHandler.extensions_map, '.webp': 'image/webp'}  # la ropa de Filo es webp
+
     def __init__(self, *args, **kwargs):
         super().__init__(*args, directory=CARPETA, **kwargs)
 
@@ -433,6 +449,7 @@ class Manejador(SimpleHTTPRequestHandler):
             '/dibujar': lambda d: {'url': acciones.dibujar(str(d.get('prompt', '')))},
             '/borrar-dibujo': lambda d: {'borrado': acciones.borrar_dibujo(str(d.get('url', '')))},
             '/buscar': lambda d: acciones.investigar(str(d.get('consulta', '')), str(d.get('mensaje', '')), pedir_json),
+            '/explicar': lambda d: acciones.explicar_enlace(str(d.get('url', ''))[:2000], str(d.get('mensaje', '')), pedir_json),
         }
         if self.path not in rutas:
             return self.enviar_json(404, {'error': 'no existe'})
@@ -440,7 +457,7 @@ class Manejador(SimpleHTTPRequestHandler):
             largo = int(self.headers.get('Content-Length', 0))
             datos = json.loads(self.rfile.read(largo) or b'{}')
             salida = rutas[self.path](datos)
-            if self.path == '/buscar':
+            if self.path in ('/buscar', '/explicar'):
                 salida.update(limpiar_salida(salida))
             self.enviar_json(200, salida)
         except Exception as e:

@@ -500,6 +500,24 @@
   }
   requestAnimationFrame(cuadro);
 
+  // lentes de corazon rosados: se los pone en «modo nerd» («cuéntame más»)
+  const corazonLente = (cx, cy, r) => `M ${cx} ${cy + r} C ${cx - r * 1.6} ${cy + r * 0.1}, ${cx - r * 1.25} ${cy - r * 1.05}, ${cx} ${cy - r * 0.45} `
+    + `C ${cx + r * 1.25} ${cy - r * 1.05}, ${cx + r * 1.6} ${cy + r * 0.1}, ${cx} ${cy + r} Z`;
+  const lentes = grupo(cabeza, { class: 'lentes' });
+  lentes.style.opacity = 0;
+  lentes.style.transition = 'opacity .35s ease';
+  for (const cx of [253, 347]) {
+    camino(lentes, corazonLente(cx, 308, 36), { fill: 'rgba(255,120,160,.18)', stroke: '#e83f7a', 'stroke-width': 4.5, 'stroke-linejoin': 'round' });
+    camino(lentes, `M ${cx - 36 * 0.6} 308 l ${36 * 0.27} ${-36 * 0.2}`, { fill: 'none', stroke: '#fff', 'stroke-width': 3.8249999999999997, 'stroke-linecap': 'round', opacity: 0.7 });
+  }
+  camino(lentes, 'M 288 293 Q 300 286 312 293', { fill: 'none', stroke: '#e83f7a', 'stroke-width': 3.8249999999999997 });
+  camino(lentes, 'M 214 293 L 200 287 M 386 293 L 400 287', { fill: 'none', stroke: '#e83f7a', 'stroke-width': 3.375, 'stroke-linecap': 'round' });
+
+  // ropa segun la ocasion (codigo/ropa.js): las piezas estan hechas para la ilustracion y aqui se achican
+  // para que los ojos de las dos coincidan (ilustracion: ojos 388/653, y 460; dibujo: 254/356, y 309)
+  const AJUSTE = 'translate(305 292) scale(0.41) translate(-520 -460)';  // un poco mas arriba: su cabeza es mas alta
+  const ropa = { cuerpo: grupo(cuerpo, { class: 'ropa' }), cabeza: grupo(cabeza, { class: 'ropa' }), extra: grupo(cuerpo, { class: 'ropa' }) };
+
   window.FiloDibujo = {
     expresion(n) {
       // la alegria cambia: a veces ojos cerrados, a veces se rie, a veces se emociona o guina
@@ -511,5 +529,7 @@
     // reaccion del cuerpo al tocarla (antes de hablar): cabeza, alas o cuerpo
     toque(zona) { estado.toque = { zona, desde: performance.now() / 1000 }; },
     nivel(n) { estado.nivel = n; },
+    lentes(si) { lentes.style.opacity = si ? 1 : 0; },
+    ropa(nombre) { if (window.FiloRopa) window.FiloRopa.vestir(ropa, nombre, { conCuerpo: false, ajuste: AJUSTE }); },
   };
 })();

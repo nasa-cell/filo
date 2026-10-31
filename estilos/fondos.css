@@ -94,6 +94,19 @@ body.video-grande .tele { width: min(1100px, 100%, calc((100dvh - 120px) * 16 / 
 .resultado strong { color: var(--azul); font-size: .95rem; }
 .resultado small { color: #0f7a3a; font-weight: 700; }
 .resultado span { font-size: .85rem; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+.resultados-titulo { display: flex; align-items: baseline; gap: 8px; }
+.resultados-leidas { margin-left: auto; font-weight: 700; color: #4a5a85; font-size: .78rem; white-space: nowrap; }
+.resultado .leida { font-style: normal; font-weight: 800; color: #0f7a3a; font-size: .75rem; }
+/* con el resumen de Filo la lista se achica: solo titulo, sitio y si la leyo */
+.resultados:has(.resultados-resumen) .resultado span { display: none; }
+.resultados:has(.resultados-resumen) .resultado { grid-template-columns: minmax(0, 1fr) auto; column-gap: 8px; padding: 6px 10px; }
+.resultados:has(.resultados-resumen) .resultado strong { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.resultados:has(.resultados-resumen) .resultado small { grid-column: 1; }
+.resultados:has(.resultados-resumen) .resultado .leida { grid-column: 2; grid-row: 1 / 3; align-self: center; }
+.resultados-resumen { margin: 10px 4px 8px; line-height: 1.45; color: #223; font-size: .92rem; }
+.resultados-botones { display: flex; flex-wrap: wrap; gap: 6px; margin: 0 2px 2px; }
+.resultados-botones .mq-btn { text-decoration: none; }
+.enlace-foto { display: block; width: 100%; height: clamp(110px, 22vh, 190px); object-fit: cover; object-position: top; border-radius: 10px; border: 1px solid #dde3f3; cursor: zoom-in; background: #f2f5fc; }
 /* ventana grande: dibujo en grande o pagina para leer */
 body > .grande { position: fixed; inset: 0; z-index: 8; background: rgba(5, 15, 45, .7); display: grid; place-items: center; padding: 16px; }
 .ventana { background: #fff; border: 4px solid var(--dorado); border-radius: 22px; padding: 14px; width: min(560px, 100%); max-height: calc(100dvh - 32px); display: grid; grid-template-rows: auto minmax(0, 1fr) auto; gap: 12px; box-shadow: 0 20px 50px rgba(0, 0, 0, .5); }
@@ -218,3 +231,10 @@ body > .grande { position: fixed; inset: 0; z-index: 8; background: rgba(5, 15, 
 
 /* celular: la ✕ del panel no se sale por el borde de la pantalla */
 @media (max-width: 700px) { .mini.cerrar { top: -10px; right: -2px; } }
+
+/* ropa de Filo (codigo/ropa.js): entra con un saltito y las notas o la lupa flotan */
+.ropa-entra { animation: ropa-entra .45s cubic-bezier(.2, .9, .3, 1.4); transform-box: fill-box; transform-origin: center; }
+@keyframes ropa-entra { from { opacity: 0; translate: 0 -30px; } to { opacity: 1; translate: 0 0; } }
+.ropa-nota, .ropa-flota { animation: ropa-flota 2.2s ease-in-out infinite alternate; transform-box: fill-box; }
+@keyframes ropa-flota { from { translate: 0 0; } to { translate: 0 -18px; } }
+@media (prefers-reduced-motion: reduce) { .ropa-entra, .ropa-nota, .ropa-flota { animation: none; } }

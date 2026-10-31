@@ -303,26 +303,66 @@
   function agrandar(si) { if (video) document.body.classList.toggle('video-grande', si); }
 
   // ---------- resultados de busqueda y vista de lectura ----------
-  function mostrarResultados(consulta, resultados) {
+  // resumen: lo que Filo dijo; leidas: que paginas leyo enteras; detalle: lo que cuenta con «Cuéntame más»
+  function mostrarResultados(consulta, resultados, extra = {}) {
     cerrarLado();
     const caja = crear('div', 'resultados');
-    caja.append(crear('div', 'resultados-titulo', '🔎 ' + consulta));
+    const cabeza = crear('div', 'resultados-titulo', '🔎 ' + consulta);
+    const leidas = (extra.leidas || []).filter(Boolean).length;
+    if (leidas) cabeza.append(crear('small', 'resultados-leidas', `leyó ${leidas} ${leidas === 1 ? 'página' : 'páginas'}`));
+    caja.append(cabeza);
     const lista = crear('ol');
-    for (const r of resultados) {
+    resultados.forEach((r, i) => {
       const li = crear('li');
       const b = boton('', 'Abrir «' + r.titulo + '» aquí', () => leerPagina(r));
       b.className = 'resultado';
-      let sitio = '';
-      try { sitio = new URL(r.url).hostname.replace(/^www\./, ''); } catch (e) { /* url rara */ }
-      b.append(crear('strong', '', r.titulo), crear('small', '', sitio), crear('span', '', r.resumen));
+      b.append(crear('strong', '', r.titulo), crear('small', '', sitioDe(r.url)), crear('span', '', r.resumen));
+      if (extra.leidas && extra.leidas[i]) b.append(crear('em', 'leida', '✓ leída'));
       li.append(b);
       lista.append(li);
-    }
+    });
     caja.append(lista);
+    agregarResumen(caja, extra.resumen, extra.detalle);
     lado.dataset.tipo = 'resultados';
     lado.append(caja, boton('✕', 'Quitar los resultados', cerrarLado, 'mini cerrar'));
     lado.hidden = false;
   }
+  function sitioDe(url) {
+    try { return new URL(url).hostname.replace(/^www\./, ''); } catch (e) { return ''; }
+  }
+  function agregarResumen(caja, resumen, detalle, enlace) {
+    if (resumen) caja.append(crear('p', 'resultados-resumen', resumen));
+    const botones = crear('div', 'resultados-botones');
+    if (detalle) botones.append(boton('💬 Cuéntame más', 'Que Filo te explique con más detalle', () => alPedirMas && alPedirMas(detalle), 'mq-btn lleno'));
+    if (enlace) {
+      const abrir = crear('a', 'mq-btn', '↗ Abrir página');
+      abrir.href = enlace; abrir.target = '_blank'; abrir.rel = 'noopener';
+      botones.append(abrir);
+    }
+    if (botones.children.length) caja.append(botones);
+  }
+  // tarjeta de un enlace que el Maestro le paso: foto de la pagina, resumen y botones
+  function mostrarEnlace(d) {
+    cerrarLado();
+    const caja = crear('div', 'resultados tarjeta-enlace');
+    const cabeza = crear('div', 'resultados-titulo', '🔗 ' + (d.titulo || d.sitio));
+    cabeza.append(crear('small', 'resultados-leidas', d.sitio || ''));
+    caja.append(cabeza);
+    if (d.captura) {
+      const foto = crear('img', 'enlace-foto');
+      foto.src = d.captura;
+      foto.alt = 'Foto de la página ' + (d.titulo || '');
+      foto.title = 'Ver la foto en grande';
+      foto.onerror = () => foto.remove();
+      foto.onclick = () => { const g = crear('img', 'ventana-img'); g.src = d.captura; g.alt = foto.alt; abrirGrande([crear('div', 'ventana-titulo', '🔗 ' + (d.titulo || d.sitio)), g], []); };
+      caja.append(foto);
+    }
+    agregarResumen(caja, d.respuesta, d.detalle, d.url);
+    lado.dataset.tipo = 'resultados';
+    lado.append(caja, boton('✕', 'Quitar la página', cerrarLado, 'mini cerrar'));
+    lado.hidden = false;
+  }
+  let alPedirMas = null;
   async function leerPagina(r) {
     const titulo = crear('div', 'ventana-titulo', '📄 ' + r.titulo);
     const texto = crear('div', 'lectura', 'Abriendo la página…');
@@ -341,7 +381,8 @@
   }
 
   window.FiloAcciones = {
-    nuevoDibujo, mostrarVideo, mostrarResultados, cerrarLado, cerrarGrande,
+    nuevoDibujo, mostrarVideo, mostrarResultados, mostrarEnlace, cerrarLado, cerrarGrande,
+    alPedirMas(f) { alPedirMas = f; },
     seguir, pausar, otroVideo, agrandar, estaSonando, descargar,
     hayVideo: () => !!video,
     mover, irA,

@@ -197,6 +197,7 @@
     lista.ultima = b.shift();
     return lista[lista.ultima];
   }
+  let detalleUltimo = '';  // explicacion larga de la ultima busqueda o enlace («cuéntame más»)
   let quieta = null, avisosSolos = 0, dormida = false;
   const ocupada = () => boton.disabled || !audio.paused || (A() && A().estaSonando && A().estaSonando());
   function contarQuieta() {
@@ -207,6 +208,7 @@
     if (ocupada()) return contarQuieta();
     if (avisosSolos < 2) {
       avisosSolos++;
+      quizasPollito(0.5);
       decir(...sacar(FF.sola));
       return contarQuieta();
     }
@@ -216,6 +218,38 @@
     decir(...sacar(FF.dormir)).then(() => { if (dormida) aviso('Filo se quedó dormida… 💤 (háblale o tócala para despertarla)'); });
   }
   let antesDeDormir = 'normal';
+
+  // ---------- ropa segun la ocasion (codigo/ropa.js) ----------
+  // dormida: pijama; dibujando: boina y bata; buscando: detective; con musica o video: audifonos;
+  // hablando de comida: chef; de vez en cuando: gorro de pollito; y en fechas especiales su ropa de fiesta
+  const ocasion = { dibujando: false, buscando: false, chefHasta: 0, pollitoHasta: 0, cumple: false };
+  const COMIDA = /(?<!\p{L})(carne|comida|comer|com[ií]|comiste|hambre|cocin\p{L}*|receta\p{L}*|postre|almuerzo|cena|desayuno|pizza|pollo|rocoto|ceviche|dulces?|pastel|torta|helado)(?!\p{L})/iu;
+  function fechaEspecial() {
+    const hoy = new Date();
+    if (hoy.getMonth() === 9 && hoy.getDate() === 31) return 'bruja';
+    if (hoy.getMonth() === 11) return 'navidad';
+    return ocasion.cumple ? 'fiesta' : null;
+  }
+  function elegirRopa() {
+    const ahora = Date.now();
+    if (dormida) return 'pijama';
+    if (ocasion.dibujando) return 'pintora';
+    if (ocasion.buscando) return 'detective';
+    if (A() && A().estaSonando && A().estaSonando()) return 'audifonos';
+    if (ocasion.chefHasta > ahora) return 'chef';
+    if (ocasion.pollitoHasta > ahora) return 'pollito';
+    return fechaEspecial();
+  }
+  let ropaPuesta;
+  setInterval(() => {
+    const r = elegirRopa();
+    if (r === ropaPuesta) return;
+    ropaPuesta = r;
+    filos().forEach((f) => f.ropa && f.ropa(r));
+  }, 500);
+  // de vez en cuando se pone su gorro de pollito un ratito
+  const quizasPollito = (prob) => { if (Math.random() < prob) ocasion.pollitoHasta = Date.now() + 25000; };
+  const fijarseComida = (...textos) => { if (textos.some((t) => COMIDA.test(t || ''))) ocasion.chefHasta = Date.now() + 15000; };
   // conVoz: si la despiertan tocandola dice algo; si le hablan, responde al mensaje
   function despertar(conVoz = false) {
     avisosSolos = 0;
@@ -348,9 +382,15 @@
 
   function ordenRapida(m) {
     const t = m.toLowerCase().trim().replace(/[.!¡¿?]+/g, '');
+    // «cuéntame más»: explica con detalle lo ultimo que busco o la pagina que leyo (sin volver a preguntar a la IA)
+    if (detalleUltimo && /^(filo,?\s*)?((cu[eé]ntame|dime|expl[ií]ca(me)?|sigue) (m[aá]s|un poco m[aá]s)|m[aá]s detalles?|dame m[aá]s detalles?|y qu[eé] m[aá]s)(,? filo)?$/.test(t)) {
+      contarMas(detalleUltimo);
+      return true;
+    }
     // «saluda», «preséntate», «¿quién eres?»: presentacion ya grabada, al instante
     const sinNombre = t.replace(/^(hola,?\s*)?(filo,?\s*)?/, '').replace(/,?\s*filo$/, '').trim();
     if (/^(sal[uú]da(me|nos)?|pres[eé]ntate|pres[eé]ntate por favor|qui[eé]n eres( t[uú])?|c[oó]mo te llamas|dime qui[eé]n eres)$/.test(sinNombre)) {
+      quizasPollito(0.3);
       decir(...sacar(FF.saludo));
       return true;
     }
@@ -427,10 +467,13 @@
       await terminaRelleno();
       seguirHablando(FF.esperando.dibujando, FF.esperando.sigueDibujo);
       aviso('Dibujando…', 'voz');
-      const { url } = await postJson('/dibujar', { prompt: acc.consulta });
-      await terminaRelleno();
-      A().nuevoDibujo(url, acc.adivinanza ? '¿Qué será? 🤔' : acc.titulo, acc.consulta);
-      return decir(d.respuesta || '¡Ya está, mira!', d.emocion);
+      ocasion.dibujando = true;
+      try {
+        const { url } = await postJson('/dibujar', { prompt: acc.consulta });
+        await terminaRelleno();
+        A().nuevoDibujo(url, acc.adivinanza ? '¿Qué será? 🤔' : acc.titulo, acc.consulta);
+        return await decir(d.respuesta || '¡Ya está, mira!', d.emocion);
+      } finally { setTimeout(() => { ocasion.dibujando = false; }, 3000); }
     }
     if (acc.tipo === 'video') {
       await terminaRelleno();
@@ -450,18 +493,46 @@
       seguirHablando(FF.esperando.buscando, FF.esperando.sigue);
       aviso('Buscando en internet…', 'voz');
       const leyendo = setTimeout(() => aviso('Leyendo las páginas…', 'voz'), 2500);
+      ocasion.buscando = true;
       try {
         const res = await postJson('/buscar', { consulta: acc.consulta, mensaje });
         await terminaRelleno();
-        if (res.resultados && res.resultados.length) A().mostrarResultados(acc.consulta, res.resultados);
-        return decir(res.respuesta, res.emocion);
-      } finally { clearTimeout(leyendo); }
+        detalleUltimo = res.detalle || '';
+        if (res.resultados && res.resultados.length) A().mostrarResultados(acc.consulta, res.resultados, { leidas: res.leidas, resumen: res.respuesta, detalle: detalleUltimo });
+        fijarseComida(acc.consulta, res.respuesta);
+        return await decir(res.respuesta, res.emocion);
+      } finally { clearTimeout(leyendo); ocasion.buscando = false; }
     }
   }
+  // el Maestro le pasa un enlace: Filo lee la pagina, muestra su foto y la explica
+  async function explicarEnlace(url, mensaje) {
+    seguirHablando(FF.esperando.buscando, FF.esperando.sigue);
+    aviso('Leyendo la página…', 'voz');
+    ocasion.buscando = true;
+    try {
+      const d = await postJson('/explicar', { url, mensaje });
+      await terminaRelleno();
+      detalleUltimo = d.detalle || '';
+      A().mostrarEnlace(d);
+      historial.push({ rol: 'usuario', texto: mensaje }, { rol: 'filo', texto: d.respuesta });
+      return await decir(d.respuesta, d.emocion);
+    } finally { ocasion.buscando = false; }
+  }
+  function contarMas(detalle) {
+    detalleUltimo = '';  // ya lo conto: si lo vuelven a pedir, pregunta a la IA
+    historial.push({ rol: 'usuario', texto: 'Cuéntame más' }, { rol: 'filo', texto: detalle });
+    callar();
+    const ponerLentes = (si) => filos().forEach((f) => f.lentes && f.lentes(si));
+    ponerLentes(true);  // modo nerd: se pone sus lentes de corazon mientras explica
+    decir(detalle, 'orgullosa').finally(() => ponerLentes(false));
+  }
+  window.FiloAcciones.alPedirMas(contarMas);
   async function dibujarOtraVez(dibujo) {
     callar();
     expresion('pensando', 90000);
     aviso('Dibujando otra versión…', 'voz');
+    ocasion.dibujando = true;
+    setTimeout(() => { ocasion.dibujando = false; }, 20000);
     try {
       const { url } = await postJson('/dibujar', { prompt: dibujo.prompt || dibujo.titulo });
       A().nuevoDibujo(url, dibujo.titulo, dibujo.prompt);
@@ -491,12 +562,17 @@
     expresion('pensando', 90000);
     try {
       if (location.protocol === 'file:') throw new Error('sin servidor');
+      const enlace = guardar && (mensaje.match(/https?:\/\/[^\s<>"]+/i) || [])[0];
+      if (enlace) return await explicarEnlace(enlace, mensaje);
       const imagen = await fotoParaEnviar(mensaje);
       aviso(imagen ? 'Mirando y pensando…' : 'Pensando…', 'piensa');
       // mientras la IA piensa, Filo dice algo con su voz grabada (solo cuando el Maestro le habla)
       if (guardar) seguirHablando(FF.esperando[imagen ? 'mirando' : 'pensando'], FF.esperando.sigue);
       const d = await postJson('/hablar', { mensaje, historial: historial.slice(-16), imagen, lugar, sin_accion: sinAccion, id: idMaestro, hora: horaMaestro(), minutos: Math.round((Date.now() - abierta) / 60000) });
       if (d.animo) ponerReposo(REPOSO[d.animo] || 'normal', 10000);
+      if (d.cumple) ocasion.cumple = true;
+      fijarseComida(mensaje, d.respuesta);
+      quizasPollito(0.08);
       const secreto = d.accion && d.accion.adivinanza ? `(dibujé en secreto: ${d.accion.titulo}; el Maestro tiene que adivinarlo) ` : '';
       if (guardar) historial.push({ rol: 'usuario', texto: mensaje + (imagen ? ' [le mostré una imagen]' : '') }, { rol: 'filo', texto: secreto + (d.respuesta || '(' + (d.accion ? d.accion.titulo : '') + ')') });
       if (d.accion) {

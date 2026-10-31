@@ -401,14 +401,33 @@ def leer_pagina(url, limite=20000, espera=12, respaldo=True):
         return {'titulo': html.unescape(titulo.group(1).strip()) if titulo else url, 'texto': texto[:limite]}
 
 
-RESPONDER_BUSQUEDA = (
-    "Te paso resultados REALES de internet. Responde la pregunta del Maestro usando SOLO esa información (si no "
-    "alcanza, dilo). Cita de qué página sale el dato principal (por su nombre, no la dirección). Primera frase corta "
-    "que ya responda; máximo 90 palabras; sin listas ni emojis; con tu personalidad de Filo. Reacciona con la emoción "
-    "que te produce lo que encontraste (feliz, risa, emocionada, sorpresa, pensando, enojada, triste, pena, miedo, "
-    "asco, timida, guino, amor, orgullosa o normal). "
-    'Responde SOLO con JSON: {"respuesta": "...", "emocion": "..."}.'
+# «cuéntame más»: Filo se pone sus lentes y explica como una nerd entusiasmada
+MODO_NERD = (
+    "El «detalle» es tu MODO NERD (te pones tus lentes): de 120 a 180 palabras, empiezas con algo como «¡Modo nerd "
+    "activado!» o «Ajustándome los lentes…» y explicas con entusiasmo de experta: datos exactos (números, fechas, "
+    "medidas, nombres), el porqué de las cosas y algún dato curioso o comparación fácil de imaginar. Todo sacado del "
+    "texto que te paso, sin inventar. "
 )
+RESPONDER_BUSQUEDA = (
+    "Te paso resultados REALES de internet (varias páginas leídas). Responde la pregunta del Maestro usando SOLO esa "
+    "información (si no alcanza, dilo). En «respuesta» va lo principal: primera frase corta que ya responda y en total "
+    "máximo 60 palabras, citando de qué página sale el dato (por su nombre, no la dirección). En «detalle» explicas "
+    "más a fondo juntando lo que dicen las distintas páginas, para cuando el Maestro diga «cuéntame más». " + MODO_NERD +
+    "Sin listas ni emojis; con tu personalidad de Filo. "
+    "Reacciona con la emoción que te produce lo que encontraste (feliz, risa, emocionada, sorpresa, pensando, enojada, "
+    "triste, pena, miedo, asco, timida, guino, amor, orgullosa o normal). "
+    'Responde SOLO con JSON: {"respuesta": "...", "detalle": "...", "emocion": "..."}.'
+)
+EXPLICAR_ENLACE = (
+    "El Maestro te pasó el enlace de una página y te pide que se la expliques. Te paso el texto REAL de esa página. "
+    "Explica usando SOLO ese texto (si casi no tiene texto o no se pudo leer, dilo). En «respuesta» va de qué trata la "
+    "página y lo más importante: primera frase corta y en total máximo 60 palabras. En «detalle» explicas más a fondo "
+    "para cuando diga «cuéntame más». " + MODO_NERD + "Si el Maestro pregunta algo concreto "
+    "sobre la página, responde eso primero. Sin listas ni emojis; con tu personalidad de Filo y la emoción que te "
+    "produce. "
+    'Responde SOLO con JSON: {"respuesta": "...", "detalle": "...", "emocion": "..."}.'
+)
+PAGINAS_A_LEER = 4  # se leen a la vez; si alguna tarda, se usa solo su resumen
 
 
 def investigar(consulta, mensaje, pedir_json):
@@ -416,18 +435,55 @@ def investigar(consulta, mensaje, pedir_json):
     if not resultados:
         return {'respuesta': 'Busqué, Maestro, pero no encontré nada sobre eso. ¿Lo pruebo con otras palabras?',
                 'emocion': 'triste', 'resultados': []}
-    # se leen las 2 primeras paginas a la vez (si tardan, se usan solo los resumenes)
-    with ThreadPoolExecutor(2) as hilos:
-        lecturas = list(hilos.map(lambda r: _leer_o_nada(r['url']), resultados[:2]))
+    primeros = resultados[:PAGINAS_A_LEER]
+    with ThreadPoolExecutor(len(primeros)) as hilos:
+        lecturas = list(hilos.map(lambda r: _leer_o_nada(r['url']), primeros))
     contexto = []
     for i, r in enumerate(resultados):
         parte = f"[{i + 1}] {r['titulo']} ({urllib.parse.urlparse(r['url']).hostname}): {r['resumen']}"
-        if i < 2 and lecturas[i]:
-            parte += '\nTexto de la página: ' + lecturas[i][:3000]
+        if i < len(lecturas) and lecturas[i]:
+            parte += '\nTexto de la página: ' + lecturas[i][:2500]
         contexto.append(parte)
     salida = pedir_json(RESPONDER_BUSQUEDA, 'Pregunta del Maestro: «' + mensaje[:400] + '»\nBúsqueda: ' + consulta
-                        + '\n\nResultados:\n' + '\n\n'.join(contexto))
+                        + '\n\nResultados:\n' + '\n\n'.join(contexto), max_tokens=1100)
     salida['resultados'] = resultados
+    salida['leidas'] = [bool(x) for x in lecturas]
+    return salida
+
+
+def captura_pagina(url):
+    """Foto de la pagina hecha por r.jina.ai (gratis, sin clave). Devuelve la direccion de la imagen o ''."""
+    pedido = urllib.request.Request('https://r.jina.ai/' + url, headers={'Accept': 'application/json', 'X-Return-Format': 'screenshot'})
+    try:
+        with urllib.request.urlopen(pedido, timeout=25) as r:
+            enlace = str((json.load(r).get('data') or {}).get('screenshotUrl') or '')
+        return enlace if enlace.startswith('https://') else ''
+    except Exception as e:
+        print('captura fallo:', str(e)[:150], flush=True)
+        return ''
+
+
+def explicar_enlace(url, mensaje, pedir_json):
+    url = url.strip().rstrip(".,;)»\"'")  # quita la puntuacion pegada al final del enlace
+    if not es_publica(url):
+        raise ValueError('direccion no permitida')
+    with ThreadPoolExecutor(2) as hilos:
+        foto = hilos.submit(captura_pagina, url)
+        lectura = hilos.submit(lambda: leer_pagina(url, 12000, espera=15))
+        try:
+            pagina = lectura.result()
+        except Exception as e:
+            print('explicar: no se pudo leer', str(e)[:150], flush=True)
+            pagina = {'titulo': urllib.parse.urlparse(url).hostname or url, 'texto': ''}
+        captura = foto.result()
+    sitio = (urllib.parse.urlparse(url).hostname or '').removeprefix('www.')
+    if pagina['texto'].strip():
+        salida = pedir_json(EXPLICAR_ENLACE, 'Lo que dice el Maestro: «' + mensaje[:400] + '»\nPágina: ' + pagina['titulo']
+                            + ' (' + sitio + ')\n\nTexto de la página:\n' + pagina['texto'][:7000], max_tokens=1100)
+    else:
+        salida = {'respuesta': 'Uy, Maestro, esa página no me dejó leerla. Puedes abrirla tú con el botón, ¿sí?',
+                  'detalle': '', 'emocion': 'pena'}
+    salida.update(titulo=pagina['titulo'][:160], url=url, sitio=sitio, captura=captura)
     return salida
 
 
