@@ -37,7 +37,7 @@ Filo, la filolial de *El héroe del escudo*, en 2D: conversa contigo con su voz,
 
 ## Publicarla en Render
 
-Servicio web de Python: comando de instalación `pip install -r requirements.txt` y de inicio `python servidor.py`. Las claves van en las variables de entorno del servicio.
+Servicio web de Python: comando de instalación `pip install -r requirements.txt` y de inicio `python servidor.py`. Las claves van en las variables de entorno del servicio. Con  la página pide esa contraseña para entrar (así nadie más gasta las cuotas ni ve la memoria).
 
 ## Archivos
 

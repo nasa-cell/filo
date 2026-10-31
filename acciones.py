@@ -216,7 +216,20 @@ def buscar_youtube(consulta):
 # ---------- internet ----------
 def buscar_web(consulta):
     """Prueba buscadores gratis en orden hasta que uno responda (en Render algunos bloquean a los servidores)."""
-    for buscador in (_buscar_duckduckgo, _buscar_duckduckgo_lite, _buscar_bing, _buscar_google_gemini, _buscar_wikipedia):
+    rapidos = (_buscar_duckduckgo, _buscar_bing, _buscar_duckduckgo_lite)
+    hilos = ThreadPoolExecutor(len(rapidos))
+    tareas = [hilos.submit(b, consulta) for b in rapidos]
+    hilos.shutdown(wait=False)
+    limite = time.time() + 7
+    for buscador, tarea in zip(rapidos, tareas):
+        try:
+            resultados = tarea.result(timeout=max(0.1, limite - time.time()))
+            print(f'buscar: {buscador.__name__} dio {len(resultados)}', flush=True)
+            if resultados:
+                return resultados
+        except Exception as e:
+            print(buscador.__name__, 'fallo:', str(e)[:150] or type(e).__name__, flush=True)
+    for buscador in (_buscar_google_gemini, _buscar_wikipedia):
         try:
             inicio = time.time()
             resultados = buscador(consulta)
@@ -269,7 +282,7 @@ _limpio = lambda s: html.unescape(re.sub(r'<[^>]+>', '', s or '')).strip()
 def _buscar_duckduckgo_lite(consulta):
     pedido = urllib.request.Request('https://lite.duckduckgo.com/lite/', data=urllib.parse.urlencode({'q': consulta, 'kl': 'es-es'}).encode(),
                                     headers={'User-Agent': NAVEGADOR, 'Content-Type': 'application/x-www-form-urlencoded'})
-    with urllib.request.urlopen(pedido, timeout=10) as r:
+    with urllib.request.urlopen(pedido, timeout=6) as r:
         pagina = r.read().decode('utf-8', 'replace')
     enlaces = re.findall(r"<a[^>]+href=\"([^\"]+)\"[^>]*class='result-link'[^>]*>(.*?)</a>", pagina, re.S)
     resumenes = re.findall(r"<td class='result-snippet'>(.*?)</td>", pagina, re.S)
@@ -285,7 +298,7 @@ def _buscar_duckduckgo_lite(consulta):
 
 
 def _buscar_bing(consulta):
-    pedido = urllib.request.Request('https://www.bing.com/search?setlang=es&cc=PE&q=' + urllib.parse.quote(consulta),
+    pedido = urllib.request.Request('https://www.bing.com/search?setlang=es&cc=PE&mkt=es-PE&q=' + urllib.parse.quote(consulta),
                                     headers={'User-Agent': NAVEGADOR, 'Accept-Language': 'es-PE,es;q=0.9'})
     with urllib.request.urlopen(pedido, timeout=10) as r:
         pagina = r.read().decode('utf-8', 'replace')
@@ -323,7 +336,7 @@ def _buscar_wikipedia(consulta):
 def _buscar_duckduckgo(consulta):
     pedido = urllib.request.Request('https://html.duckduckgo.com/html/?kl=es-es&q=' + urllib.parse.quote(consulta),
                                     headers={'User-Agent': NAVEGADOR})
-    with urllib.request.urlopen(pedido, timeout=10) as r:
+    with urllib.request.urlopen(pedido, timeout=6) as r:
         pagina = r.read().decode('utf-8', 'replace')
     resultados = []
     for bloque in re.findall(r'<div class="result results_links.*?(?=<div class="result results_links|\Z)', pagina, re.S):

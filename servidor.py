@@ -2,6 +2,8 @@
 # y la voz de Filo a Fish Audio (modelo gratis). Las claves se leen de las
 # variables de Windows GEMINI_API_KEY y FISH_API_KEY, nunca de archivos.
 import base64
+import hashlib
+import hmac
 import socket
 import sys
 from concurrent.futures import ThreadPoolExecutor, as_completed
@@ -341,6 +343,29 @@ VOZ_EMOCION = {'emocionada': (1.12, 1), 'risa': (1.1, 1), 'feliz': (1.05, 0), 'e
                'dormida': (0.82, -5), 'amor': (0.98, 0), 'asco': (1.0, 0), 'orgullosa': (0.97, 1), 'pensando': (0.95, 0)}
 
 
+# ---------- acceso: en Render solo entra quien sabe la contraseña (variable FILO_CLAVE) ----------
+# asi nadie con el enlace gasta las cuotas gratis de las IA ni ve la memoria y el album. En el PC no se pide.
+CLAVE_ACCESO = (clave('FILO_CLAVE') or '') if EN_LA_NUBE else ''
+FICHA = hashlib.sha256(('filo-acceso:' + CLAVE_ACCESO).encode()).hexdigest() if CLAVE_ACCESO else ''
+PUBLICO = ('/', '/index.html', '/acceso', '/entrar', '/favicon.ico')
+PUBLICO_CARPETAS = ('/codigo/', '/estilos/', '/imagenes/', '/voces/')
+_intentos = {}  # ip -> [horas de intentos fallidos]
+_cerrojo_intentos = threading.Lock()
+
+
+def demasiados_intentos(ip):
+    ahora = time.time()
+    with _cerrojo_intentos:
+        lista = [t for t in _intentos.get(ip, []) if ahora - t < 600]
+        _intentos[ip] = lista
+        return len(lista) >= 8  # 8 errores en 10 minutos: espera
+
+
+def anotar_fallo(ip):
+    with _cerrojo_intentos:
+        _intentos.setdefault(ip, []).append(time.time())
+
+
 def guardar_album(datos):
     id_maestro = memoria.MAESTRO
     memo = memoria.leer(id_maestro)
@@ -364,7 +389,41 @@ class Manejador(SimpleHTTPRequestHandler):
         self.end_headers()
         self.wfile.write(cuerpo)
 
+    def ip(self):
+        return (self.headers.get('X-Forwarded-For') or self.client_address[0]).split(',')[0].strip()
+
+    def con_permiso(self):
+        if not CLAVE_ACCESO:
+            return True
+        galletas = self.headers.get('Cookie') or ''
+        dada = re.search(r'(?:^|;\s*)filo_acceso=([0-9a-f]{64})', galletas)
+        return bool(dada) and hmac.compare_digest(dada.group(1), FICHA)
+
+    def entrar(self):
+        ip = self.ip()
+        if demasiados_intentos(ip):
+            return self.enviar_json(429, {'error': 'Demasiados intentos. Espera 10 minutos.'})
+        try:
+            largo = min(int(self.headers.get('Content-Length', 0)), 2000)
+            dada = str(json.loads(self.rfile.read(largo) or b'{}').get('clave', ''))
+        except Exception:
+            dada = ''
+        if not CLAVE_ACCESO or not hmac.compare_digest(dada.encode(), CLAVE_ACCESO.encode()):
+            anotar_fallo(ip)
+            return self.enviar_json(401, {'error': 'Contraseña incorrecta.'})
+        cuerpo = b'{"ok": true}'
+        self.send_response(200)
+        self.send_header('Content-Type', 'application/json')
+        self.send_header('Content-Length', str(len(cuerpo)))
+        self.send_header('Set-Cookie', f'filo_acceso={FICHA}; Max-Age=31536000; Path=/; HttpOnly; Secure; SameSite=Strict')
+        self.end_headers()
+        self.wfile.write(cuerpo)
+
     def do_POST(self):
+        if self.path == '/entrar':
+            return self.entrar()
+        if not self.con_permiso():
+            return self.enviar_json(401, {'error': 'falta la contraseña'})
         rutas = {
             '/hablar': hablar,
             '/album-leer': lambda d: {'lista': memoria.leer(memoria.MAESTRO).get('album', [])},
@@ -394,6 +453,10 @@ class Manejador(SimpleHTTPRequestHandler):
         privado = urllib.parse.unquote(ruta.path).lower()
         if '/.' in privado or privado.endswith(('.py', '.pyc', '.cmd', '.md')) or privado.startswith(('/datos_memoria', '/contexto', '/__pycache__')):
             return self.enviar_json(404, {'error': 'no existe'})
+        if ruta.path == '/acceso':
+            return self.enviar_json(200 if self.con_permiso() else 401, {'pide_clave': bool(CLAVE_ACCESO)})
+        if not (ruta.path in PUBLICO or ruta.path.startswith(PUBLICO_CARPETAS) or self.con_permiso()):
+            return self.enviar_json(401, {'error': 'falta la contraseña'})
         pedido_get = urllib.parse.parse_qs(ruta.query)
         if ruta.path in ('/youtube', '/leer'):
             try:
