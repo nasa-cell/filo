@@ -603,7 +603,38 @@
     if (libre) decirFrase('alAlbum');
     else { aviso('📒 El dibujo se guardará en el álbum: ahí lo encontrarás.', 'voz'); setTimeout(() => aviso(''), 5000); }
   });
-  window.FiloAcciones.alTerminarVideo((v) => preguntar(`(El video «${v.titulo}» que te pidió el Maestro acaba de terminar. Dile qué te pareció con tu personalidad y tu emoción (si te gustó, te dio risa, miedo o pena) y pregúntale si quiere ver otro o hacer otra cosa.)`, false, true));
+  // Filo «ve» el video: Gemini lo mira entero (imagen y sonido) apenas empieza; a la mitad reacciona con un
+  // aviso escrito y su cara (sin cortar la musica) y al terminar dice con su voz lo que sintio
+  const sentidos = {};  // id -> { listo: promesa, datos, mitadDicha }
+  window.FiloAcciones.alEmpezarVideo((v) => {
+    if (sentidos[v.id]) return;
+    const s = sentidos[v.id] = { datos: null, mitadDicha: false };
+    s.listo = fetch('/sentir-video?' + new URLSearchParams({ id: v.id, titulo: v.titulo, duracion: v.duracion || '' }))
+      .then((r) => (r.ok ? r.json() : null)).then((d) => { s.datos = d && d.final ? d : null; return s.datos; })
+      .catch(() => null);
+  });
+  setInterval(() => {
+    const m = A() && A().momento && A().momento();
+    if (!m || !m.total || !A().estaSonando()) return;
+    const s = sentidos[m.id];
+    if (!s || !s.datos || s.mitadDicha || m.va < m.total / 2 || !s.datos.mitad) return;
+    s.mitadDicha = true;
+    if (!boton.disabled && audio.paused) {
+      expresion(s.datos.emocion_mitad, 6000);
+      aviso(s.datos.mitad, 'siente');
+      setTimeout(() => { if ($('estado').dataset.tipo === 'siente') aviso(''); }, 7000);
+    }
+  }, 1000);
+  window.FiloAcciones.alTerminarVideo(async (v) => {
+    const s = sentidos[v.id];
+    const datos = s ? await Promise.race([s.listo, new Promise((r) => setTimeout(() => r(null), 8000))]) : null;
+    if (datos) {
+      historial.push({ rol: 'filo', texto: `(vi con el Maestro el video «${v.titulo}»: ${datos.resumen}) ${datos.final}` });
+      decir(datos.final, datos.emocion_final);
+    } else {
+      preguntar(`(El video «${v.titulo}» que te pidió el Maestro acaba de terminar. Dile qué te pareció con tu personalidad y tu emoción (si te gustó, te dio risa, miedo o pena) y pregúntale si quiere ver otro o hacer otra cosa.)`, false, true);
+    }
+  });
 
   // pregunta a la IA y Filo dice la respuesta (o hace lo que le piden)
   async function preguntar(mensaje, guardar, sinAccion = false) {

@@ -284,6 +284,63 @@ def pedir_json(tarea, texto, sin_groq=False, max_tokens=700):
         return json.loads(json.load(r)['candidates'][0]['content']['parts'][0]['text'])
 
 
+SENTIR = (
+    "Acabas de ver este video de YouTube con tu Maestro (míralo y escúchalo de verdad: lo que se ve, lo que se canta o "
+    "se dice, la música). Reacciona como Filo, una niña con emociones de verdad, hablando de cosas CONCRETAS del video "
+    "(una escena, una parte de la letra, un personaje, el ritmo), no en general. Responde SOLO con JSON: "
+    '{"resumen": "2 frases: de qué trata y qué pasa (para que lo recuerdes)", '
+    '"mitad": "reacción cortita (máx. 12 palabras) a algo de la PRIMERA mitad, como si lo vieras en ese momento", '
+    '"emocion_mitad": "...", '
+    '"final": "lo que sentiste al terminar: 2 o 3 frases con algo concreto que te gustó, te dio risa, miedo o pena, '
+    'y al final pregúntale si quiere ver otro", "emocion_final": "..."}. '
+    "Las emociones son una de: feliz, emocionada, risa, sorpresa, pensando, enojada, triste, pena, miedo, asco, amor, "
+    "orgullosa, timida. Sin emojis ni asteriscos (se lee en voz alta)."
+)
+_sentidos = {}  # id del video -> lo que Filo sintio (asi no se mira dos veces)
+
+
+def segundos(duracion):
+    try:
+        total = 0
+        for parte in str(duracion).split(':'):
+            total = total * 60 + int(parte)
+        return total
+    except ValueError:
+        return 0
+
+
+def sentir_video(id_video, titulo, duracion):
+    """Gemini mira el video entero (imagen y sonido) y Filo dice lo que sintio. Los videos largos: solo los 8 primeros minutos."""
+    if not re.fullmatch(r'[\w-]{11}', id_video or ''):
+        raise ValueError('id de video no valido')
+    if id_video in _sentidos:
+        return _sentidos[id_video]
+    video = {'file_data': {'file_uri': 'https://www.youtube.com/watch?v=' + id_video}}
+    if segundos(duracion) > 600:
+        video['video_metadata'] = {'start_offset': '0s', 'end_offset': '480s', 'fps': 0.5}  # cuida la cuota gratis
+    cuerpo = {'systemInstruction': {'parts': [{'text': instrucciones() + ' ' + SENTIR}]},
+              'contents': [{'role': 'user', 'parts': [video, {'text': 'El video se llama «' + titulo[:150] + '».'}]}],
+              'generationConfig': {'temperature': 0.7, 'maxOutputTokens': 600, 'responseMimeType': 'application/json'}}
+    pedido = urllib.request.Request(f'https://generativelanguage.googleapis.com/v1beta/models/{MODELO}:generateContent',
+                                    data=json.dumps(cuerpo).encode(),
+                                    headers={'Content-Type': 'application/json', 'x-goog-api-key': clave('GEMINI_API_KEY') or ''})
+    with urllib.request.urlopen(pedido, timeout=90) as r:
+        salida = json.loads(json.load(r)['candidates'][0]['content']['parts'][0]['text'])
+    if isinstance(salida, list):
+        salida = salida[0] if salida else {}
+    limpio = {k: str(salida.get(k) or '').replace('*', '').strip()[:500] for k in ('resumen', 'mitad', 'final')}
+    for k in ('emocion_mitad', 'emocion_final'):
+        limpio[k] = salida.get(k) if salida.get(k) in EMOCIONES else 'feliz'
+    for k in ('mitad', 'final'):
+        limpio[k] = limpio[k][:1].upper() + limpio[k][1:]
+    if not limpio['final']:
+        raise ValueError('sin respuesta')
+    if len(_sentidos) > 200:
+        _sentidos.clear()
+    _sentidos[id_video] = limpio
+    return limpio
+
+
 JUGADAS = ('piedra', 'papel', 'tijera')
 PIEDRA_PAPEL = re.compile(r'\b(piedra|papel|tijeras?)\b', re.I)
 
@@ -491,10 +548,13 @@ class Manejador(SimpleHTTPRequestHandler):
         if not (ruta.path in PUBLICO or ruta.path.startswith(PUBLICO_CARPETAS) or self.con_permiso()):
             return self.enviar_json(401, {'error': 'falta la contraseña'})
         pedido_get = urllib.parse.parse_qs(ruta.query)
-        if ruta.path in ('/youtube', '/leer'):
+        if ruta.path in ('/youtube', '/leer', '/sentir-video'):
             try:
                 if ruta.path == '/youtube':
                     salida = {'videos': acciones.buscar_youtube(pedido_get.get('q', [''])[0][:200])}
+                elif ruta.path == '/sentir-video':
+                    uno = lambda k: pedido_get.get(k, [''])[0]
+                    salida = sentir_video(uno('id'), uno('titulo'), uno('duracion'))
                 else:
                     salida = acciones.leer_pagina(pedido_get.get('url', [''])[0])
                 return self.enviar_json(200, salida)

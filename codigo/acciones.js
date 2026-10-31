@@ -231,7 +231,7 @@
   pintarGaleria();
 
   // ---------- video de YouTube ----------
-  let reproductor = null, video = null, alTerminarVideo = null;
+  let reproductor = null, video = null, alTerminarVideo = null, alEmpezarVideo = null;
   let apiYouTube = null;
   function cargarApi() {
     if (apiYouTube) return apiYouTube;
@@ -272,7 +272,10 @@
             video.i++;
             reproductor.cueVideoById(poner());
           },
-          onStateChange: (e) => { if (e.data === YT.PlayerState.ENDED && alTerminarVideo && video) alTerminarVideo(video.lista[video.i]); },
+          onStateChange: (e) => {
+            if (e.data === YT.PlayerState.ENDED && alTerminarVideo && video) alTerminarVideo(video.lista[video.i]);
+            if (e.data === YT.PlayerState.PLAYING && alEmpezarVideo && video) alEmpezarVideo(video.lista[video.i]);
+          },
         },
       });
       video.poner = poner;
@@ -388,6 +391,9 @@
     mover, irA,
     dibujoVisible: () => (lado.dataset.tipo === 'dibujo' && !lado.hidden ? dibujoActual : null),
     alTerminarVideo(f) { alTerminarVideo = f; },
+    alEmpezarVideo(f) { alEmpezarVideo = f; },
+    momento: () => (reproductor && reproductor.getCurrentTime && video
+      ? { id: video.lista[video.i].id, va: reproductor.getCurrentTime(), total: reproductor.getDuration() } : null),
     alPedirOtraVersion(f) { alPedirOtraVersion = f; },
     alAvisarQuitar(f) { alAvisarQuitar = f; },
     alUsarDibujo(f) { alUsarDibujo = f; },

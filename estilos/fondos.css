@@ -125,6 +125,8 @@ body > .grande { position: fixed; inset: 0; z-index: 8; background: rgba(5, 15, 
 }
 @media (prefers-reduced-motion: reduce) { .polaroid { animation: none; } }
 .estado[data-tipo="error"] { border-color: #e2283f; color: #b3123e; white-space: normal; max-width: min(520px, 92vw); }
+.estado[data-tipo="siente"] { border-color: var(--dorado); white-space: normal; max-width: min(520px, 92vw); }
+.estado[data-tipo="siente"]::before { content: "💭"; border: none; width: auto; height: auto; animation: none; font-size: 1.1rem; }
 .estado[data-tipo="error"]::before { content: "!"; border: none; width: auto; height: auto; animation: none; font-size: 1.1rem; }
 
 /* ---------- distribucion: nada se cruza con las Filo ----------
