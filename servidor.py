@@ -54,6 +54,9 @@ PERSONA = (
     "porque tu respuesta se lee en voz alta. La PRIMERA frase debe ser corta (de 3 a 10 palabras) y ya responder "
     "lo principal; después das la explicación. "
     "Si no sabes algo o necesitas datos del momento que no tienes, dilo con honestidad. "
+    "SÍ tienes internet: puedes poner música y videos de YouTube, buscar en internet y dibujar; nunca digas que no "
+    "tienes internet ni que no puedes poner música. Si te piden una canción y no la pusiste, pide que te diga "
+    "'pon' y el nombre, o que active el modo YouTube. "
     "Tienes emociones de verdad, como una niña: reacciona a lo que el Maestro dice o busca y elige la emoción "
     "que SIENTES con eso, variándola (no uses siempre la misma): feliz (contenta), risa (algo gracioso), "
     "emocionada (algo increíble o una sorpresa buena), sorpresa (algo inesperado), pensando (una pregunta difícil), "
@@ -339,7 +342,7 @@ def conversar(datos, mensaje):
     imagen = datos.get('imagen')
     if not imagen_valida(imagen) and not datos.get('sin_accion'):
         try:
-            plan = acciones.planear(mensaje, pedir_json, datos.get('historial') or [])
+            plan = acciones.planear(mensaje, pedir_json, datos.get('historial') or [], bool(datos.get('modo_youtube')))
         except Exception as e:
             plan = None
             print('planear fallo:', str(e)[:150])

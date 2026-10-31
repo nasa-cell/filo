@@ -22,7 +22,7 @@ NAVEGADOR = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML
 
 # pistas rapidas: solo si aparecen se pregunta a la IA si de verdad pide una accion
 PISTAS = re.compile(r'dib[uú]j|ilustr|pint[ae]|im[aá]gen|crea(me)? una|haz(me)? una|video|v[ií]deo|youtube|canci[oó]n|m[uú]sica|'
-                    r'reproduc|\bpon(me|er)?\b|busca|b[uú]scame|investiga|google|internet|noticia|[uú]ltima hora|p[aá]gina|web', re.I)
+                    r'reproduc|\bpon(me|er|la|lo|las)?\b|esc[uú]cha|\btoca(me)?\b|opening|ending|\bost\b|\brola\b|playlist|lista de reproducci|cantante|\bbanda\b|\bcanta\b|busca|b[uú]scame|investiga|google|internet|noticia|[uú]ltima hora|p[aá]gina|web', re.I)
 
 PLAN = (
     "Decide si el Maestro te pide HACER algo. accion puede ser: 'dibujo' (que dibujes, pintes o crees una imagen), "
@@ -47,8 +47,11 @@ PLAN = (
 )
 
 
-def planear(mensaje, pedir_json, historial=()):
-    """Devuelve el plan si el mensaje pide dibujar, un video o buscar; si no, None."""
+def planear(mensaje, pedir_json, historial=(), modo_youtube=False):
+    """Devuelve el plan si el mensaje pide dibujar, un video o buscar; si no, None.
+    En modo YouTube todo lo que pide el Maestro se busca en YouTube."""
+    if modo_youtube:
+        return planear_video(mensaje, pedir_json, historial)
     if not PISTAS.search(mensaje):
         return None
     antes = '\n'.join(('Maestro: ' if h.get('rol') == 'usuario' else 'Filo: ') + str(h.get('texto', ''))[:200]
@@ -58,6 +61,35 @@ def planear(mensaje, pedir_json, historial=()):
     if plan.get('accion') not in ('dibujo', 'video', 'buscar') or not str(plan.get('consulta', '')).strip():
         return None
     return {k: str(plan.get(k, '')).strip() for k in ('accion', 'consulta', 'titulo', 'respuesta', 'emocion', 'adivinanza')}
+
+
+PLAN_VIDEO = (
+    "Estás en MODO YOUTUBE: todo lo que pide el Maestro es música o un video para buscar en YouTube, aunque no diga "
+    "'video' ni 'canción'. consulta: lo que hay que buscar en YouTube (nombre de la canción, cantante, anime, tema), "
+    "corregido si lo escribió mal. titulo: nombre corto en español (máx. 5 palabras). respuesta: 1 frase corta y "
+    "alegre de Filo para cuando ya suene, reaccionando a lo que es (varía cómo empiezas). Si pide TU favorita elige "
+    "tú (por ejemplo 'RISE' de MADKID); si pide la SUYA, la que diga la conversación. "
+    'Responde SOLO con JSON: {"consulta": "...", "titulo": "...", "respuesta": "...", "emocion": "feliz"}. '
+    "La emoción va con lo que pide (feliz, emocionada, risa, miedo, pena, amor u orgullosa)."
+)
+
+
+def planear_video(mensaje, pedir_json, historial=()):
+    antes = '\n'.join(('Maestro: ' if h.get('rol') == 'usuario' else 'Filo: ') + str(h.get('texto', ''))[:200]
+                      for h in list(historial)[-6:] if isinstance(h, dict))
+    try:
+        plan = pedir_json(PLAN_VIDEO, ('Conversación reciente:\n' + antes + '\n\n' if antes else '')
+                          + 'El Maestro pide: «' + mensaje[:400] + '»')
+    except Exception as e:
+        print('planear_video fallo:', str(e)[:150])
+        plan = {}
+    # si la IA falla, se busca tal cual lo que dijo (sin «filo,» ni «pon»)
+    limpio = re.sub(r'^(filo,?\s*)?((pon(me|la|lo)?|reproduce|toca(me)?|quiero (escuchar|ver|o[ií]r)|busca(me)?)\s+)?', '',
+                    mensaje.strip(), flags=re.I).strip() or mensaje.strip()
+    consulta = str(plan.get('consulta') or '').strip() or limpio
+    return {'accion': 'video', 'consulta': consulta, 'titulo': str(plan.get('titulo') or consulta[:40]).strip(),
+            'respuesta': str(plan.get('respuesta') or '').strip(), 'emocion': str(plan.get('emocion') or 'feliz').strip(),
+            'adivinanza': 'false'}
 
 
 # ---------- dibujos ----------

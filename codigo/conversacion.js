@@ -219,6 +219,21 @@
   }
   let antesDeDormir = 'normal';
 
+  // ---------- modo YouTube: todo lo que pide el Maestro se busca en YouTube ----------
+  // «Filo, ponte modo YouTube» lo enciende y «sal del modo YouTube» lo apaga (tambien el boton de arriba)
+  let modoYoutube = false;
+  try { modoYoutube = localStorage.getItem('filo_modo_youtube') === '1'; } catch (e) { /* nada */ }
+  function ponerModoYoutube(si, conVoz) {
+    modoYoutube = si;
+    try { localStorage.setItem('filo_modo_youtube', si ? '1' : '0'); } catch (e) { /* nada */ }
+    const b = $('b-youtube');
+    if (b) b.setAttribute('aria-pressed', si);
+    document.body.classList.toggle('modo-youtube', si);
+    $('mensaje').placeholder = si ? '▶ Modo YouTube: dime qué canción o video pongo…' : 'Escríbele algo a Filo…';
+    if (conVoz) decir(si ? '¡Modo YouTube activado, Maestro! Dime qué canción o video quieres y lo busco.'
+      : '¡Listo! Salí del modo YouTube. Ahora conversamos normal.', si ? 'emocionada' : 'feliz');
+  }
+
   // ---------- ropa segun la ocasion (codigo/ropa.js) ----------
   // dormida: pijama; dibujando: boina y bata; buscando: detective; con musica o video: audifonos;
   // hablando de comida: chef; de vez en cuando: gorro de pollito; y en fechas especiales su ropa de fiesta
@@ -237,6 +252,7 @@
     if (ocasion.dibujando) return 'pintora';
     if (ocasion.buscando) return 'detective';
     if (ocasion.pedidaHasta > ahora) return ocasion.pedida;  // la que le pidio el Maestro
+    if (modoYoutube) return 'audifonos';
     if (A() && A().estaSonando && A().estaSonando()) return 'audifonos';
     if (ocasion.chefHasta > ahora) return 'chef';
     if (ocasion.pollitoHasta > ahora) return 'pollito';
@@ -384,6 +400,14 @@
 
   function ordenRapida(m) {
     const t = m.toLowerCase().trim().replace(/[.!¡¿?]+/g, '');
+    // modo YouTube (acepta como suene o se escriba: youtube, yotube, youtuber, yutub…)
+    const modoYT = /\bmodo\s+(y[a-z]*t[a-z]*b[a-z]*|you ?tube\w*|m[uú]sica|dj)\b/;
+    if (modoYT.test(t) || /^(filo,?\s*)?(youtube|yotube|youtuber)$/.test(t)) {
+      const apagar = /\b(sal|s[aá]l(te|ir)?|quita(lo)?|apaga(lo)?|desactiva(lo)?|termina|cierra|deja|sin|no)\b/.test(t);
+      ponerModoYoutube(!apagar, true);
+      return true;
+    }
+    if (modoYoutube && /\bmodo normal\b|^(ya )?no m[aá]s (m[uú]sica|videos?)$/.test(t)) { ponerModoYoutube(false, true); return true; }
     // «cuéntame más»: explica con detalle lo ultimo que busco o la pagina que leyo (sin volver a preguntar a la IA)
     if (detalleUltimo && /^(filo,?\s*)?((cu[eé]ntame|dime|expl[ií]ca(me)?|sigue) (m[aá]s|un poco m[aá]s)|m[aá]s detalles?|dame m[aá]s detalles?|y qu[eé] m[aá]s)(,? filo)?$/.test(t)) {
       contarMas(detalleUltimo);
@@ -572,6 +596,8 @@
   }
   window.FiloAcciones.alPedirOtraVersion(dibujarOtraVez);
   // 15 s antes de quitar el dibujo de la pantalla, Filo avisa (con voz si no esta hablando)
+  $('b-youtube').addEventListener('click', () => ponerModoYoutube(!modoYoutube, true));
+  ponerModoYoutube(modoYoutube, false);
   window.FiloAcciones.alAvisarQuitar(() => {
     const libre = audio.paused && !boton.disabled;
     if (libre) decirFrase('alAlbum');
@@ -597,7 +623,7 @@
       aviso(imagen ? 'Mirando y pensando…' : 'Pensando…', 'piensa');
       // mientras la IA piensa, Filo dice algo con su voz grabada (solo cuando el Maestro le habla)
       if (guardar) seguirHablando(FF.esperando[imagen ? 'mirando' : 'pensando'], FF.esperando.sigue);
-      const d = await postJson('/hablar', { mensaje, historial: historial.slice(-16), imagen, lugar, sin_accion: sinAccion, id: idMaestro, hora: horaMaestro(), minutos: Math.round((Date.now() - abierta) / 60000) });
+      const d = await postJson('/hablar', { mensaje, historial: historial.slice(-16), imagen, lugar, sin_accion: sinAccion, modo_youtube: modoYoutube && guardar, id: idMaestro, hora: horaMaestro(), minutos: Math.round((Date.now() - abierta) / 60000) });
       if (d.animo) ponerReposo(REPOSO[d.animo] || 'normal', 10000);
       if (d.cumple) ocasion.cumple = true;
       fijarseComida(mensaje, d.respuesta);

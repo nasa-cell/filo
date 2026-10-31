@@ -86,6 +86,9 @@ body { background: radial-gradient(circle at 50% 38%, #ffffff, #e3eeff 70%); dis
 
 .vista { height: 34px; border-radius: 999px; border: 2px solid var(--azul); background: #fff; color: var(--azul); font: inherit; font-weight: 800; padding: 0 14px; cursor: pointer; }
 .vista[aria-pressed="true"] { background: var(--azul); color: #fff; }
+.b-youtube { margin-left: auto; }
+.b-youtube[aria-pressed="true"] { background: #e62117; border-color: #e62117; color: #fff; }
+.modo-youtube .charla input { border-color: #e62117; }
 .charla { display: flex; gap: 8px; width: min(640px, calc(100% - 20px)); margin: 0 auto 12px; }
 .charla input { flex: 1; min-width: 0; font: inherit; font-size: 1rem; padding: 11px 14px; border: 2px solid #cfe0ff; border-radius: 14px; background: #fff; color: var(--azul-osc); }
 .charla input:focus { outline: none; border-color: var(--azul); }
