@@ -664,9 +664,9 @@
       };
       oido.onerror = (e) => {
         let msg = '';
-        if (e.error === 'not-allowed' || e.error === 'service-not-allowed') { msg = 'Permite el micrófono en el candado de la barra de direcciones.'; apagar(); }
+        if (e.error === 'not-allowed' || e.error === 'service-not-allowed') { msg = 'Permite el micrófono en el candado de la barra de direcciones.'; permitido = false; apagar(); }
         else if (e.error === 'network') msg = 'Sin internet no puedo entender la voz.';
-        else if (e.error === 'audio-capture') { msg = 'No encuentro un micrófono conectado.'; apagar(); }
+        else if (e.error === 'audio-capture') { msg = 'No encuentro un micrófono conectado.'; permitido = false; apagar(); }
         if (msg) entrada.placeholder = msg;
       };
       // Chrome corta la escucha cada tanto (silencio largo): si el Maestro no lo apago, vuelve a escuchar
@@ -676,17 +676,19 @@
         if (++fallos > 20) { apagar(); entrada.placeholder = 'El micrófono se detuvo. Toca 🎤 para encenderlo otra vez.'; return; }
         setTimeout(() => { if (encendido && !oido) { try { arrancar(); } catch (err) { /* lo intenta en el siguiente corte */ } } }, 300);
       };
+      oido.onstart = () => { permitido = true; };
       oido.start();
     }
     function apagar() {
       encendido = false;
       escuchando(false);
-      entrada.placeholder = ESCRIBE;
+      entrada.placeholder = permitido ? ESPERANDO : ESCRIBE;
       if (juntado.trim()) mandar();  // lo que alcanzo a decir no se pierde
       if (oido) { const o = oido; oido = null; try { o.stop(); } catch (e) { /* ya estaba parado */ } }
+      setTimeout(esperarPalabra, 700);  // queda atento solo a «enciende el micrófono»
     }
-    micro.addEventListener('click', () => {
-      if (encendido) return apagar();
+    function encender() {
+      pararEspera();
       callar();
       terminar();
       encendido = true;
@@ -695,7 +697,47 @@
       entrada.value = '';
       entrada.placeholder = OYENDO;
       escuchando(true);
-      try { arrancar(); } catch (e) { apagar(); }
-    });
+      setTimeout(() => { if (encendido && !oido) { try { arrancar(); } catch (e) { apagar(); } } }, 250);
+    }
+    micro.addEventListener('click', () => (encendido ? apagar() : encender()));
+
+    // ---------- microfono apagado: queda atento SOLO a «Filo, enciende el micrófono» ----------
+    // no envia nada de lo que oye; al escuchar esa frase se enciende (solo si ya diste permiso al micrófono)
+    const ESPERANDO = 'Escribe, o di «Filo, enciende el micrófono»';
+    const DESPIERTA = /(enci[eé]nde(lo)?|prende(lo)?|pr[eé]ndelo|activa(lo)?|abre)\b.*micr[oó]fono|micr[oó]fono.*(enci[eé]nde|prende|activa)|esc[uú]chame/;
+    let espera = null, esperaFallos = 0, permitido = false;
+    function esperarPalabra() {
+      if (encendido || espera || !permitido || document.hidden) return;
+      const r = new Reconocer();
+      espera = r;
+      r.lang = 'es-PE';
+      r.continuous = true;
+      r.interimResults = true;
+      r.onresult = (e) => {
+        esperaFallos = 0;
+        const oye = Array.from(e.results).slice(e.resultIndex).map((x) => x[0].transcript.toLowerCase()).join(' ');
+        if (!DESPIERTA.test(oye)) return;
+        encender();
+        aviso('🎤 Micrófono encendido: te escucho', 'lista');
+        setTimeout(() => aviso(''), 2000);
+      };
+      r.onerror = (e) => { if (['not-allowed', 'service-not-allowed', 'audio-capture'].includes(e.error)) { permitido = false; entrada.placeholder = ESCRIBE; } };
+      r.onend = () => {
+        if (espera === r) espera = null;
+        if (!encendido && permitido && ++esperaFallos < 300) setTimeout(esperarPalabra, esperaFallos > 5 ? 3000 : 400);
+      };
+      try { r.start(); entrada.placeholder = ESPERANDO; } catch (e) { espera = null; }
+    }
+    function pararEspera() {
+      const r = espera;
+      espera = null;
+      if (r) { r.onend = null; try { r.abort(); } catch (e) { /* ya estaba parado */ } }
+    }
+    // si el micrófono ya tiene permiso, desde que se abre la pagina queda atento a la frase
+    if (navigator.permissions && navigator.permissions.query) {
+      navigator.permissions.query({ name: 'microphone' }).then((p) => { if (p.state === 'granted') { permitido = true; esperarPalabra(); } }).catch(() => {});
+    }
+    // al volver a la pestaña retoma la espera (Chrome la corta cuando la pestaña no se ve)
+    document.addEventListener('visibilitychange', () => { if (!document.hidden) setTimeout(esperarPalabra, 500); });
   }
 })();
