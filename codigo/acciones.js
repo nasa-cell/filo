@@ -36,13 +36,47 @@
     document.body.classList.remove('video-grande');
   }
 
+  // ---------- quien es el Maestro ----------
+  // Filo es de un solo Maestro: el servidor usa una sola memoria y un solo album para todos los equipos
+  const ID_VALIDO = /^[a-zA-Z0-9-]{8,64}$/;
+  const idMaestro = (() => {
+    try {
+      let id = localStorage.getItem('filo_id') || '';
+      if (!ID_VALIDO.test(id)) {
+        id = 'm-' + Date.now().toString(36) + '-' + Math.random().toString(36).slice(2, 12);
+        localStorage.setItem('filo_id', id);
+      }
+      return id;
+    } catch (e) { return ''; }
+  })();
+  window.FiloId = idMaestro;
+
   // ---------- dibujos ----------
   const MAXIMO = 500;  // dibujos que guarda el album
   let dibujos = [];
   try { dibujos = JSON.parse(localStorage.getItem('filo_dibujos') || '[]'); } catch (e) { dibujos = []; }
   let dibujoActual = null;
   let alPedirOtraVersion = null;
-  function guardarLista() { try { localStorage.setItem('filo_dibujos', JSON.stringify(dibujos.slice(0, MAXIMO))); } catch (e) { /* sin memoria */ } }
+  // el album se guarda en el navegador y tambien en la memoria del servidor (asi se ve en otros equipos)
+  let subirAlbum = null;
+  const pedir = (url, datos) => fetch(url, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(datos) });
+  function guardarLista() {
+    try { localStorage.setItem('filo_dibujos', JSON.stringify(dibujos.slice(0, MAXIMO))); } catch (e) { /* sin memoria */ }
+    if (!idMaestro || location.protocol === 'file:') return;
+    clearTimeout(subirAlbum);
+    subirAlbum = setTimeout(() => pedir('/album-guardar', { id: idMaestro, lista: dibujos.slice(0, MAXIMO) }).catch(() => {}), 800);
+  }
+  // al abrir: junta el album del servidor con el de este navegador
+  if (idMaestro && location.protocol !== 'file:') {
+    pedir('/album-leer', { id: idMaestro }).then((r) => (r.ok ? r.json() : null)).then((d) => {
+      if (!d || !Array.isArray(d.lista)) return;
+      const ya = new Set(dibujos.map((x) => x.url));
+      const nuevos = d.lista.filter((x) => x && x.url && !ya.has(x.url));
+      const faltanAlla = dibujos.length && dibujos.some((x) => !d.lista.find((y) => y.url === x.url));
+      if (nuevos.length) { dibujos = dibujos.concat(nuevos).slice(0, MAXIMO); pintarGaleria(); }
+      if (nuevos.length || faltanAlla) guardarLista();
+    }).catch(() => {});
+  }
   function descargar(d) {
     const a = crear('a');
     // en Cloudinary «fl_attachment» hace que se descargue con un clic en vez de abrirse

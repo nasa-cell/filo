@@ -19,7 +19,9 @@ import threading
 import memoria
 
 CARPETA = os.path.dirname(os.path.abspath(__file__))
-PUERTO = 5077
+# en Render el puerto lo da la variable PORT y se escucha a internet; en el PC, solo en este equipo
+EN_LA_NUBE = bool(os.environ.get('PORT'))
+PUERTO = int(os.environ.get('PORT') or 5077)
 MODELO = 'gemini-flash-lite-latest'
 # Groq (gratis, ~1 s) con Qwen para las preguntas: mantiene bien la personalidad de Filo.
 # Las fotos y la camara van a Gemini, que describe las imagenes con mas precision.
@@ -282,7 +284,7 @@ PIEDRA_PAPEL = re.compile(r'\b(piedra|papel|tijeras?)\b', re.I)
 
 def hablar(datos):
     """Conversa con memoria del Maestro: recuerda, tiene animo que dura y luego aprende del mensaje."""
-    id_maestro = str(datos.get('id') or '')
+    id_maestro = memoria.MAESTRO  # Filo es de un solo Maestro: la misma memoria en el PC, el celular y la nube
     mensaje = str(datos.get('mensaje', ''))
     memo = memoria.leer(id_maestro)
     extra = memoria.contexto(memo, str(datos.get('hora') or '')[:60])
@@ -338,6 +340,14 @@ VOZ_EMOCION = {'emocionada': (1.12, 1), 'risa': (1.1, 1), 'feliz': (1.05, 0), 'e
                'dormida': (0.82, -5), 'amor': (0.98, 0), 'asco': (1.0, 0), 'orgullosa': (0.97, 1), 'pensando': (0.95, 0)}
 
 
+def guardar_album(datos):
+    id_maestro = memoria.MAESTRO
+    memo = memoria.leer(id_maestro)
+    memo['album'] = memoria.album_valido(datos.get('lista'))
+    memoria.guardar(id_maestro, memo)
+    return {'ok': True, 'cuantos': len(memo['album'])}
+
+
 class Manejador(SimpleHTTPRequestHandler):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, directory=CARPETA, **kwargs)
@@ -356,8 +366,10 @@ class Manejador(SimpleHTTPRequestHandler):
     def do_POST(self):
         rutas = {
             '/hablar': hablar,
+            '/album-leer': lambda d: {'lista': memoria.leer(memoria.MAESTRO).get('album', [])},
+            '/album-guardar': guardar_album,
             # al abrir la pagina: trae la memoria de Neon antes del primer mensaje (asi no tarda)
-            '/preparar': lambda d: (threading.Thread(target=memoria.leer, args=(str(d.get('id', '')),), daemon=True).start(), {'ok': True})[1],
+            '/preparar': lambda d: (threading.Thread(target=memoria.leer, args=(memoria.MAESTRO,), daemon=True).start(), {'ok': True})[1],
             '/dibujar': lambda d: {'url': acciones.dibujar(str(d.get('prompt', '')))},
             '/borrar-dibujo': lambda d: {'borrado': acciones.borrar_dibujo(str(d.get('url', '')))},
             '/buscar': lambda d: acciones.investigar(str(d.get('consulta', '')), str(d.get('mensaje', '')), pedir_json),
@@ -377,6 +389,10 @@ class Manejador(SimpleHTTPRequestHandler):
 
     def do_GET(self):
         ruta = urllib.parse.urlparse(self.path)
+        # no se muestran archivos del servidor ni datos privados (codigo Python, .git, memoria local)
+        privado = urllib.parse.unquote(ruta.path).lower()
+        if '/.' in privado or privado.endswith(('.py', '.pyc', '.cmd', '.md')) or privado.startswith(('/datos_memoria', '/contexto', '/__pycache__')):
+            return self.enviar_json(404, {'error': 'no existe'})
         pedido_get = urllib.parse.parse_qs(ruta.query)
         if ruta.path in ('/youtube', '/leer'):
             try:
@@ -431,6 +447,8 @@ if __name__ == '__main__':
     # cada pedido perdia ~2,5 s antes de pasar a 127.0.0.1
     class ServidorIPv6(ThreadingHTTPServer):
         address_family = socket.AF_INET6
+    if EN_LA_NUBE:
+        ThreadingHTTPServer(('0.0.0.0', PUERTO), Manejador).serve_forever()
     try:
         threading.Thread(target=ServidorIPv6(('::1', PUERTO), Manejador).serve_forever, daemon=True).start()
     except OSError as e:

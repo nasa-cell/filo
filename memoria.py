@@ -3,7 +3,7 @@ o Render se reinicie.
 
 - Se guarda en la base de Neon «filo-memoria» (variable FILO_DATABASE_URL), separada de los otros proyectos.
 - Sin esa variable se guarda en la carpeta «datos_memoria» del PC (sirve igual para probar en local).
-- Cada navegador tiene su propio id (lo crea la pagina), asi cada persona tiene su propia memoria.
+- Filo es de un solo Maestro: una sola memoria (id «maestro-filo») para el PC, el celular y la pagina publicada.
 """
 import json
 import os
@@ -13,6 +13,7 @@ import time
 
 CARPETA = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'datos_memoria')
 MAX_DATOS, MAX_PENDIENTES = 40, 10
+MAESTRO = 'maestro-filo'
 _cerrojo = threading.Lock()
 _tabla_lista = False
 _en_ram = {}  # memoria de cada Maestro mientras el servidor esta encendido (Neon tarda ~1 s por consulta)
@@ -44,7 +45,7 @@ def _id_valido(id_maestro):
 
 def vacia():
     return {'nombre': '', 'datos': [], 'pendientes': [], 'animo': {'emocion': 'normal', 'restantes': 0, 'motivo': ''},
-            'ultima': 0, 'visitas': 0}
+            'ultima': 0, 'visitas': 0, 'album': []}
 
 
 def leer(id_maestro):
@@ -105,6 +106,19 @@ def _escribir(id_maestro, memoria):
                 json.dump(memoria, f, ensure_ascii=False)
         except Exception as e:
             print('memoria: no se pudo guardar', str(e)[:150])
+
+
+def album_valido(lista):
+    """Solo entradas de dibujo con direccion de imagen (Cloudinary o /dibujos/), maximo 500."""
+    limpio = []
+    for d in (lista if isinstance(lista, list) else [])[:500]:
+        if not isinstance(d, dict):
+            continue
+        url = str(d.get('url') or '')
+        if not (url.startswith('https://res.cloudinary.com/') or re.fullmatch(r'/dibujos/[\w.-]+\.(jpg|png)(\?\w*)?', url)):
+            continue
+        limpio.append({'url': url[:500], 'titulo': str(d.get('titulo') or '')[:120], 'prompt': str(d.get('prompt') or '')[:600]})
+    return limpio
 
 
 def _hace(segundos):

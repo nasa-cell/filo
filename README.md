@@ -8,7 +8,7 @@ Filo, la filolial de *El héroe del escudo*, en 2D: conversa contigo con su voz,
 - **Tiene emociones.** Feliz, risa, emocionada, amor, tímida, triste, pena, miedo, asco, enojada, celosa, orgullosa, dormida y más, en dos estilos: ilustración y dibujo. Ninguna emoción le dura más de 10 segundos.
 - **Reacciona al tocarla.** En la cabeza se pone roja y le salen corazones; si le tocas las alas tres veces, se enoja; en el cuerpo le dan cosquillas.
 - **Dibuja, pone videos y busca.** «Dibújame un gato», «pon la canción RISE», «busca el clima de Lima». Los dibujos van a un álbum con hasta 500 imágenes.
-- **Te recuerda.** Guarda tu nombre, tus gustos y lo que le cuentas, y al volver te pregunta por eso.
+- **Te recuerda.** Guarda tu nombre, tus gustos y lo que le cuentas, y al volver te pregunta por eso. Es una sola memoria y un solo álbum para el PC, el celular y la página publicada.
 - **Habla sola y se duerme** si la dejas sin hablar un rato.
 - **Juega:** piedra, papel o tijera, adivinanzas, trivia y «adivina qué dibujé».
 - **Funciona en celular, tablet y PC.**
@@ -30,10 +30,14 @@ Filo, la filolial de *El héroe del escudo*, en 2D: conversa contigo con su voz,
    | `CLOUDINARY_CLOUD_NAME`, `CLOUDINARY_API_KEY`, `CLOUDINARY_API_SECRET` | guardar los dibujos en la nube | no |
 
 3. Haz doble clic en **`iniciar.cmd`**. Se abre en Chrome en `http://localhost:5077`.
-4. (Opcional) Para que sus frases propias suenen al instante, con el servidor encendido ejecuta:
+4. Las frases propias de Filo ya vienen grabadas en `voces`. Si cambias o agregas frases en `codigo/frases-filo.js`, con el servidor encendido ejecuta:
    ```
    python grabar_voces.py
    ```
+
+## Publicarla en Render
+
+Servicio web de Python: comando de instalación `pip install -r requirements.txt` y de inicio `python servidor.py`. Las claves van en las variables de entorno del servicio.
 
 ## Archivos
 

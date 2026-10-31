@@ -293,14 +293,7 @@
   // conversacion
   const historial = [];
   // cada navegador tiene su id: con el, Filo recuerda a su Maestro en el servidor (Neon)
-  let idMaestro = '';
-  try {
-    idMaestro = localStorage.getItem('filo_id') || '';
-    if (!/^[a-zA-Z0-9-]{8,64}$/.test(idMaestro)) {
-      idMaestro = 'm-' + Date.now().toString(36) + '-' + Math.random().toString(36).slice(2, 12);
-      localStorage.setItem('filo_id', idMaestro);
-    }
-  } catch (e) { idMaestro = ''; }
+  const idMaestro = window.FiloId || '';  // lo crea acciones.js
   if (idMaestro) fetch('/preparar', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ id: idMaestro }) }).catch(() => {});
   const abierta = Date.now();  // para que Filo sepa cuanto tiempo llevan juntos hoy
   const horaMaestro = () => new Date().toLocaleString('es', { weekday: 'long', day: 'numeric', month: 'long', hour: '2-digit', minute: '2-digit' });
