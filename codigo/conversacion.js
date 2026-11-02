@@ -712,28 +712,70 @@
     if (libre) decirFrase('alAlbum');
     else { aviso('📒 El dibujo se guardará en el álbum: ahí lo encontrarás.', 'voz'); setTimeout(() => aviso(''), 5000); }
   });
-  // Filo «ve» el video: Gemini lo mira entero (imagen y sonido) apenas empieza; a la mitad reacciona con un
-  // aviso escrito y su cara (sin cortar la musica) y al terminar dice con su voz lo que sintio
-  const sentidos = {};  // id -> { listo: promesa, datos, mitadDicha }
+  // Filo «ve» el video: Gemini lo mira entero (imagen y sonido) apenas empieza. Mientras lo ven opina con su voz
+  // al 25 %, 50 % y 75 % (en videos de menos de 1 minuto, solo a la mitad): el video no se pausa, baja el volumen
+  // mientras habla y sale una burbujita con lo que dijo. Al terminar dice con su voz lo que sintio.
+  const sentidos = {};  // id -> { listo: promesa, datos, dichos: Set }
   window.FiloAcciones.alEmpezarVideo((v) => {
     if (sentidos[v.id]) return;
-    const s = sentidos[v.id] = { datos: null, mitadDicha: false };
+    const s = sentidos[v.id] = { datos: null, dichos: new Set() };
     s.listo = fetch('/sentir-video?' + new URLSearchParams({ id: v.id, titulo: v.titulo, duracion: v.duracion || '' }))
-      .then((r) => (r.ok ? r.json() : null)).then((d) => { s.datos = d && d.final ? d : null; return s.datos; })
+      .then((r) => (r.ok ? r.json() : null)).then((d) => {
+        s.datos = d && d.final ? d : null;
+        // su voz se baja antes, UNA POR UNA (Fish corta si se le piden varias a la vez): asi en cada momento
+        // habla al instante, sin «Generando voz…»
+        ((s.datos && s.datos.momentos) || []).reduce((cola, o) => cola.then(() => bajarVoz(o.texto, o.emocion)
+          .then((voz) => { grabadasNube[o.texto + '|' + o.emocion] = URL.createObjectURL(voz); }).catch(() => {})), Promise.resolve());
+        return s.datos;
+      })
       .catch(() => null);
   });
+  const burbuja = $('burbuja-video');
+  let opinando = false;
+  async function opinarDelVideo(o) {
+    opinando = true;
+    burbuja.textContent = '💭 ' + o.texto;
+    burbuja.hidden = false;
+    // en el celular el video ocupa la parte de arriba: la burbuja va justo debajo de el, sobre Filo
+    burbuja.style.top = '';
+    const lado = $('lado'), esc = burbuja.parentElement.getBoundingClientRect();
+    if (!lado.hidden) {
+      const v = lado.getBoundingClientRect(), bb = burbuja.getBoundingClientRect();
+      if (v.left < bb.right && v.right > bb.left && v.bottom > bb.top) burbuja.style.top = Math.round(v.bottom - esc.top + 14) + 'px';
+    }
+    A().bajarVolumen(true);
+    try {
+      await decir(o.texto, o.emocion);
+    } finally {
+      A().bajarVolumen(false);
+      burbuja.hidden = true;
+      opinando = false;
+    }
+  }
   setInterval(() => {
     const m = A() && A().momento && A().momento();
     if (!m || !m.total || !A().estaSonando()) return;
     const s = sentidos[m.id];
-    if (!s || !s.datos || s.mitadDicha || m.va < m.total / 2 || !s.datos.mitad) return;
-    s.mitadDicha = true;
-    if (!boton.disabled && audio.paused) {
-      expresion(s.datos.emocion_mitad, 6000);
-      aviso(s.datos.mitad, 'siente');
-      setTimeout(() => { if ($('estado').dataset.tipo === 'siente') aviso(''); }, 7000);
+    const momentos = (s && s.datos && s.datos.momentos) || [];
+    if (!momentos.length) return;
+    // en que momento toca opinar, y cual de sus 3 opiniones dice ahi
+    const puntos = m.total < 60 ? [[0.5, Math.min(1, momentos.length - 1)]] : [[0.25, 0], [0.5, 1], [0.75, 2]];
+    for (const [p, i] of puntos) {
+      if (s.dichos.has(p) || m.va < m.total * p) continue;
+      // si todavia dice la opinion anterior, espera (hasta 20 s; despues se salta esta)
+      if (opinando && m.va <= m.total * p + 20) break;
+      s.dichos.add(p);
+      const o = momentos[i];
+      // si ya paso de largo (adelanto el video) o el Maestro le esta hablando, se salta esa opinion
+      if (!o || opinando || m.va > m.total * p + 20 || boton.disabled || !audio.paused) continue;
+      opinarDelVideo(o);
+      vivenciaVideo(m, o);
+      break;
     }
   }, 1000);
+  function vivenciaVideo(m, o) {
+    historial.push({ rol: 'filo', texto: `(viendo el video con el Maestro dije) ${o.texto}` });
+  }
   window.FiloAcciones.alTerminarVideo(async (v) => {
     const s = sentidos[v.id];
     const datos = s ? await Promise.race([s.listo, new Promise((r) => setTimeout(() => r(null), 8000))]) : null;

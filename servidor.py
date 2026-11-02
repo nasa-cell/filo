@@ -290,8 +290,11 @@ SENTIR = (
     "se dice, la música). Reacciona como Filo, una niña con emociones de verdad, hablando de cosas CONCRETAS del video "
     "(una escena, una parte de la letra, un personaje, el ritmo), no en general. Responde SOLO con JSON: "
     '{"resumen": "2 frases: de qué trata y qué pasa (para que lo recuerdes)", '
-    '"mitad": "reacción cortita (máx. 12 palabras) a algo de la PRIMERA mitad, como si lo vieras en ese momento", '
-    '"emocion_mitad": "...", '
+    '"momentos": [{"texto": "...", "emocion": "..."}, {...}, {...}] (exactamente 3: lo que dices EN VOZ ALTA mientras '
+    'lo ven, una por cada parte del video (inicio, medio, casi al final); cada una de máx. 14 palabras, sobre algo '
+    'concreto que pasa o se escucha en ESA parte, como si lo vieras en ese momento, sin repetir ideas. Es TU OPINIÓN '
+    'o reacción con emoción y tu forma de hablar (te gusta, te da risa, te sorprende, te emociona, te da penita), NO '
+    'una descripción: mal «La chica camina sola», bien «¡Ay, Frieren caminando solita me da penita!»), '
     '"final": "lo que sentiste al terminar: 2 o 3 frases con algo concreto que te gustó, te dio risa, miedo o pena, '
     'y al final pregúntale si quiere ver otro", "emocion_final": "..."}. '
     "Las emociones son una de: feliz, emocionada, risa, sorpresa, pensando, enojada, triste, pena, miedo, asco, amor, "
@@ -329,17 +332,24 @@ def sentir_video(id_video, titulo, duracion):
         salida = json.loads(json.load(r)['candidates'][0]['content']['parts'][0]['text'])
     if isinstance(salida, list):
         salida = salida[0] if salida else {}
-    limpio = {k: str(salida.get(k) or '').replace('*', '').strip()[:500] for k in ('resumen', 'mitad', 'final')}
-    for k in ('emocion_mitad', 'emocion_final'):
-        limpio[k] = salida.get(k) if salida.get(k) in EMOCIONES else 'feliz'
-    for k in ('mitad', 'final'):
-        limpio[k] = limpio[k][:1].upper() + limpio[k][1:]
+    limpio = {k: str(salida.get(k) or '').replace('*', '').strip()[:500] for k in ('resumen', 'final')}
+    limpio['emocion_final'] = salida.get('emocion_final') if salida.get('emocion_final') in EMOCIONES else 'feliz'
+    limpio['final'] = limpio['final'][:1].upper() + limpio['final'][1:]
+    # las 3 opiniones que dice con su voz mientras ven el video (al 25 %, 50 % y 75 %)
+    momentos = []
+    for m in salida.get('momentos') if isinstance(salida.get('momentos'), list) else []:
+        texto = re.sub(r'\s+', ' ', str((m or {}).get('texto') if isinstance(m, dict) else m or '').replace('*', '')).strip()[:160]
+        if texto:
+            emocion = m.get('emocion') if isinstance(m, dict) and m.get('emocion') in EMOCIONES else 'emocionada'
+            momentos.append({'texto': texto[:1].upper() + texto[1:], 'emocion': emocion})
+    limpio['momentos'] = momentos[:3]
     if not limpio['final']:
         raise ValueError('sin respuesta')
     if len(_sentidos) > 200:
         _sentidos.clear()
     _sentidos[id_video] = limpio
-    memoria.vivir(memoria.MAESTRO, f'vi con el Maestro «{titulo[:70]}» y me sentí {limpio["emocion_final"]}: {limpio["final"][:120]}')
+    dije = ' Mientras lo veíamos dije: ' + ' / '.join(m["texto"][:45] for m in limpio['momentos']) if limpio['momentos'] else ''
+    memoria.vivir(memoria.MAESTRO, f'vi con el Maestro «{titulo[:70]}» y me sentí {limpio["emocion_final"]}: {limpio["final"][:80]}.{dije}')
     return limpio
 
 

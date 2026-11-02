@@ -261,3 +261,10 @@ body > .grande { position: fixed; inset: 0; z-index: 8; background: rgba(5, 15, 
 .ropa-nota, .ropa-flota { animation: ropa-flota 2.2s ease-in-out infinite alternate; transform-box: fill-box; }
 @keyframes ropa-flota { from { translate: 0 0; } to { translate: 0 -18px; } }
 @media (prefers-reduced-motion: reduce) { .ropa-entra, .ropa-nota, .ropa-flota { animation: none; } }
+
+/* lo que Filo dice mientras ven un video: burbujita sobre ella que se borra sola */
+.burbuja-video { position: absolute; top: 64px; left: 50%; transform: translateX(-50%); z-index: 3; width: max-content; max-width: min(340px, calc(100% - 32px)); padding: 10px 16px; border-radius: 18px; background: #fff; color: var(--azul-osc); font-weight: 800; font-size: 1rem; line-height: 1.3; text-align: center; box-shadow: 0 6px 18px rgba(0, 0, 0, .3); border: 3px solid var(--azul); animation: burbuja-entra .25s ease-out; }
+.burbuja-video::after { content: ""; position: absolute; bottom: -11px; left: 50%; margin-left: -9px; border: 9px solid transparent; border-top-color: var(--azul); border-bottom: 0; }
+@keyframes burbuja-entra { from { opacity: 0; transform: translate(-50%, 6px); } }
+@media (max-width: 560px) { .burbuja-video { top: 50px; font-size: .9rem; padding: 8px 12px; } }
+@media (prefers-reduced-motion: reduce) { .burbuja-video { animation: none; } }

@@ -284,6 +284,18 @@
   const estaSonando = () => reproductor && reproductor.getPlayerState && reproductor.getPlayerState() === 1;
   function seguir() { if (reproductor && reproductor.playVideo) reproductor.playVideo(); }
   function pausar() { if (reproductor && reproductor.pauseVideo) reproductor.pauseVideo(); }
+  // mientras Filo opina, el video sigue pero mas bajito (30 % de su volumen) y luego vuelve como estaba
+  let volumenAntes = null;
+  function bajarVolumen(si) {
+    if (!reproductor || !reproductor.setVolume) return;
+    if (si && volumenAntes === null) {
+      volumenAntes = reproductor.getVolume ? reproductor.getVolume() : 100;
+      reproductor.setVolume(Math.round(volumenAntes * 0.3));
+    } else if (!si && volumenAntes !== null) {
+      reproductor.setVolume(volumenAntes);
+      volumenAntes = null;
+    }
+  }
   // adelantar o retroceder (segundos, + o -) e ir a un momento exacto; devuelve el nuevo segundo
   function mover(seg) {
     if (!reproductor || !reproductor.getCurrentTime) return null;
@@ -386,7 +398,8 @@
   window.FiloAcciones = {
     nuevoDibujo, mostrarVideo, mostrarResultados, mostrarEnlace, cerrarLado, cerrarGrande,
     alPedirMas(f) { alPedirMas = f; },
-    seguir, pausar, otroVideo, agrandar, estaSonando, descargar,
+    volumen: () => (reproductor && reproductor.getVolume ? reproductor.getVolume() : null),
+    seguir, pausar, bajarVolumen, otroVideo, agrandar, estaSonando, descargar,
     hayVideo: () => !!video,
     mover, irA,
     dibujoVisible: () => (lado.dataset.tipo === 'dibujo' && !lado.hidden ? dibujoActual : null),
