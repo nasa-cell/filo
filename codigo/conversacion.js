@@ -222,6 +222,8 @@
   }
   let detalleUltimo = '';  // explicacion larga de la ultima busqueda o enlace («cuéntame más»)
   let quieta = null, avisosSolos = 0, dormida = false;
+  // lo que Filo penso mientras el Maestro no estaba (lo trae /al-volver): se lo cuenta al tocarla
+  let porContar = null;
   const ocupada = () => boton.disabled || !audio.paused || (A() && A().estaSonando && A().estaSonando());
   window.FiloOcupada = ocupada;  // para las pruebas automaticas
   function contarQuieta() {
@@ -367,10 +369,43 @@
       dormida = false;
       reposo = antesDeDormir;
       aviso('');
-      if (conVoz) decir(...sacar(FF.despertar));
+      if (porContar) mostrarLoPensado();
+      if (conVoz && porContar) contarLoPensado();
+      else if (conVoz) decir(...sacar(FF.despertar));
       else expresion('sorpresa', 1500);
     }
     contarQuieta();
+  }
+  // libretita al lado con lo que penso; se marca como contado para que no lo repita en otra visita
+  function mostrarLoPensado() {
+    const p = porContar;
+    if (!p || !A() || !A().mostrarNota) return;
+    A().mostrarNota('📝 Lo que pensé mientras no estabas', p.puntos, 'Filo lo pensó ' + cuandoFue(p.cuando));
+    fetch('/pensado-contado', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: '{}' }).catch(() => {});
+  }
+  function contarLoPensado() {
+    const p = porContar;
+    porContar = null;
+    if (!p) return;
+    aviso('');
+    decir(p.dicho, 'feliz');
+  }
+  function cuandoFue(t) {
+    const d = new Date(t * 1000), hoy = new Date(), ayer = new Date();
+    ayer.setDate(hoy.getDate() - 1);
+    const hora = d.toLocaleTimeString('es', { hour: '2-digit', minute: '2-digit' });
+    if (d.toDateString() === hoy.toDateString()) return 'hoy a las ' + hora;
+    if (d.toDateString() === ayer.toDateString()) return 'ayer a las ' + hora;
+    return 'el ' + d.toLocaleDateString('es', { weekday: 'long', day: 'numeric', month: 'long' }) + ' a las ' + hora;
+  }
+  // volvio el mismo dia despues de irse: la encuentra dormida (se despierta al tocarla o escribirle)
+  function dormirAlVolver() {
+    clearTimeout(quieta);
+    dormida = true;
+    antesDeDormir = reposo;
+    reposo = 'dormida';
+    filos().forEach((f) => f.expresion('dormida'));
+    aviso('Filo se durmió cuando te fuiste… 💤 Tócala o escríbele para despertarla', 'siente');
   }
   ['pointerdown', 'keydown'].forEach((ev) => document.addEventListener(ev, () => { if (!dormida) { avisosSolos = 0; contarQuieta(); } }, { passive: true }));
   contarQuieta();
@@ -408,6 +443,7 @@
     if (zona !== 'alasMucho' && ahora - ultimaCaricia < 1500) { filos().forEach((f) => f.toque && f.toque(zona === 'alasMucho' ? 'alas' : zona)); return; }
     ultimaCaricia = ahora;
     if (dormida) { filos().forEach((f) => f.toque && f.toque(zona === 'alasMucho' ? 'alas' : zona)); return despertar(true); }
+    if (porContar) { filos().forEach((f) => f.toque && f.toque(zona === 'alasMucho' ? 'alas' : zona)); despertar(); return contarLoPensado(); }
     despertar();
     const lista = CARICIAS[zona];
     const [texto, cara] = sacar(lista);
@@ -440,6 +476,30 @@
   const idMaestro = window.FiloId || '';  // lo crea acciones.js
   if (idMaestro) fetch('/preparar', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ id: idMaestro }) }).catch(() => {});
   const abierta = Date.now();  // para que Filo sepa cuanto tiempo llevan juntos hoy
+
+  // ---------- al cerrar la pagina Filo piensa en el Maestro y se duerme (servidor.py: revisar_ida) ----------
+  // cada pestaña avisa cada 30 s que sigue abierta y al cerrarse dice «me voy»; si en 2 min no queda ninguna
+  // abierta, el servidor hace que Filo piense que va a necesitar el Maestro y lo guarda en su memoria
+  const pestana = 'p' + Date.now().toString(36) + '-' + Math.random().toString(36).slice(2, 10);
+  const enviarPestana = (ruta) => fetch(ruta, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ pestana }) });
+  if (location.protocol !== 'file:') {
+    setInterval(() => enviarPestana('/presente').catch(() => {}), 30000);
+    addEventListener('pageshow', (e) => { if (e.persisted) enviarPestana('/presente').catch(() => {}); });
+    addEventListener('pagehide', () => {
+      try { navigator.sendBeacon('/me-voy', new Blob([JSON.stringify({ pestana })], { type: 'application/json' })); } catch (e) { /* sin aviso */ }
+    });
+    enviarPestana('/al-volver').then((r) => (r.ok ? r.json() : null)).then((d) => {
+      if (!d) return;
+      if (d.pensado && d.pensado.puntos && d.pensado.dicho) porContar = d.pensado;
+      const fuera = d.se_fue ? d.ahora - d.se_fue : 0;
+      // volvio el mismo dia: dormida; otro dia: despierta, con la libretita y le cuenta al tocarla
+      if (fuera >= (d.espera || 120) && new Date(d.se_fue * 1000).toDateString() === new Date().toDateString()) return dormirAlVolver();
+      if (porContar) {
+        mostrarLoPensado();
+        aviso('Filo pensó algo para ti mientras no estabas 📝 Tócala para que te lo cuente', 'siente');
+      }
+    }).catch(() => {});
+  }
   const horaMaestro = () => new Date().toLocaleString('es', { weekday: 'long', day: 'numeric', month: 'long', hour: '2-digit', minute: '2-digit' });
   const entrada = $('mensaje');
   const boton = $('b-enviar');
@@ -448,6 +508,7 @@
     const mensaje = entrada.value.trim();
     if (!mensaje && !fotoAdjunta) return;
     entrada.value = '';
+    if (porContar && !dormida) { porContar = null; aviso(''); }  // le escribio: responde eso (la libretita queda)
     preguntar(mensaje || 'Mira esta imagen y dime qué ves.', true);
   });
 

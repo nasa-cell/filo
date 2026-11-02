@@ -377,6 +377,19 @@
     lado.append(caja, boton('✕', 'Quitar la página', cerrarLado, 'mini cerrar'));
     lado.hidden = false;
   }
+  // libretita con lo que Filo penso mientras el Maestro no estaba (se cierra con ✕)
+  function mostrarNota(titulo, puntos, pie) {
+    cerrarLado();
+    const caja = crear('div', 'libreta');
+    caja.append(crear('h3', 'libreta-titulo', titulo));
+    const lista = crear('ul');
+    puntos.forEach((p) => lista.append(crear('li', '', p)));
+    caja.append(lista);
+    if (pie) caja.append(crear('div', 'libreta-pie', pie));
+    lado.dataset.tipo = 'nota';
+    lado.append(caja, boton('✕', 'Cerrar la libretita', cerrarLado, 'mini cerrar'));
+    lado.hidden = false;
+  }
   let alPedirMas = null;
   async function leerPagina(r) {
     const titulo = crear('div', 'ventana-titulo', '📄 ' + r.titulo);
@@ -396,7 +409,7 @@
   }
 
   window.FiloAcciones = {
-    nuevoDibujo, mostrarVideo, mostrarResultados, mostrarEnlace, cerrarLado, cerrarGrande,
+    nuevoDibujo, mostrarVideo, mostrarResultados, mostrarEnlace, mostrarNota, cerrarLado, cerrarGrande,
     alPedirMas(f) { alPedirMas = f; },
     volumen: () => (reproductor && reproductor.getVolume ? reproductor.getVolume() : null),
     seguir, pausar, bajarVolumen, otroVideo, agrandar, estaSonando, descargar,

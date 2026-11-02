@@ -106,8 +106,8 @@ body.video-grande .tele { width: min(1100px, 100%, calc((100dvh - 120px) * 16 / 
 .resultados-resumen { margin: 10px 4px 8px; line-height: 1.45; color: #223; font-size: .92rem; }
 .resultados-botones { display: flex; flex-wrap: wrap; justify-content: center; gap: 8px; position: sticky; bottom: -10px; z-index: 1; margin: 6px -10px -10px; padding: 14px 12px 16px; background: linear-gradient(rgba(255, 255, 255, 0), #fff 32%); }
 @media (min-width: 701px) {
-  .escenario > .lado[data-tipo="resultados"] { max-height: 100%; display: flex; flex-direction: column; }
-  .escenario > .lado[data-tipo="resultados"] > .resultados { max-height: 100%; min-height: 0; box-sizing: border-box; }
+  .escenario > .lado[data-tipo="resultados"], .escenario > .lado[data-tipo="nota"] { max-height: 100%; display: flex; flex-direction: column; }
+  .escenario > .lado[data-tipo="resultados"] > .resultados, .escenario > .lado[data-tipo="nota"] > .libreta { max-height: 100%; min-height: 0; box-sizing: border-box; }
 }
 .resultados-botones .mq-btn { text-decoration: none; border-radius: 999px; padding: 10px 20px; }
 .resultados-botones .mq-btn.lleno { box-shadow: 0 6px 16px rgba(31, 95, 214, .45); }
@@ -124,10 +124,10 @@ body > .grande { position: fixed; inset: 0; z-index: 8; background: rgba(5, 15, 
 @media (max-width: 560px) {
   .camara { left: 8px; }
   .lado { top: 52px; right: 3%; }
-  .lado[data-tipo="video"], .lado[data-tipo="resultados"] { left: 3%; right: 3%; display: flex; justify-content: center; }
+  .lado[data-tipo="video"], .lado[data-tipo="resultados"], .lado[data-tipo="nota"] { left: 3%; right: 3%; display: flex; justify-content: center; }
   .polaroid { width: 44vw; padding: 6px 6px 10px; }
-  .tele, .resultados { width: 100%; }
-  .resultados { max-height: 46vh; }
+  .tele, .resultados, .libreta { width: 100%; }
+  .resultados, .libreta { max-height: 46vh; }
 }
 @media (prefers-reduced-motion: reduce) { .polaroid { animation: none; } }
 .estado[data-tipo="error"] { border-color: #e2283f; color: #b3123e; white-space: normal; max-width: min(520px, 92vw); }
@@ -279,3 +279,13 @@ body > .grande { position: fixed; inset: 0; z-index: 8; background: rgba(5, 15, 
 @keyframes burbuja-entra { from { opacity: 0; transform: translate(-50%, 6px); } }
 @media (max-width: 560px) { .burbuja-video { font-size: .9rem; padding: 8px 12px; } }
 @media (prefers-reduced-motion: reduce) { .burbuja-video { animation: none; } }
+
+/* libretita: lo que Filo penso mientras el Maestro no estaba (si es larga, se lee bajando dentro de ella) */
+.libreta { width: clamp(260px, 30vw, 420px); overflow-y: auto; box-sizing: border-box; background: #fffdf3; border: 3px solid var(--dorado); border-radius: 16px; padding: 14px 16px 12px; box-shadow: 0 14px 30px rgba(0, 0, 0, .45); color: #223; animation: burbuja-entra-nota .3s ease-out; }
+.libreta-titulo { margin: 0 0 8px; font-size: 1.05rem; color: var(--azul-osc); }
+.libreta ul { margin: 0; padding-left: 20px; line-height: 1.45; font-size: .95rem; }
+.libreta li { margin-bottom: 6px; overflow-wrap: anywhere; }
+.libreta-pie { font-size: .8rem; color: #667; margin-top: 4px; }
+@keyframes burbuja-entra-nota { from { opacity: 0; transform: translateY(6px); } }
+@media (max-width: 560px) { .libreta { width: 100%; max-height: 46vh; } }
+@media (prefers-reduced-motion: reduce) { .libreta { animation: none; } }

@@ -515,6 +515,116 @@ def guardar_album(datos):
     return {'ok': True, 'cuantos': len(memo['album'])}
 
 
+# ---------- cuando el Maestro cierra la pagina: Filo piensa en el y se duerme ----------
+# Cada pestaña abierta avisa cada 30 s que sigue ahi. Al cerrar una, se espera 2 minutos: si ya no queda
+# ninguna abierta (ni en el PC ni en el celular), Filo piensa con la IA que va a necesitar el Maestro la
+# proxima vez y lo guarda en su memoria. Al volver, la pagina pregunta (/al-volver) y la encuentra dormida.
+PESTANAS = {}            # id de la pestaña -> ultima vez que aviso
+VIVA = 150               # una pestaña que no avisa hace 2,5 min se da por cerrada (el navegador frena las de fondo)
+ESPERA_IDA = int(os.environ.get('FILO_ESPERA_IDA') or 120)  # si la vuelve a abrir antes de 2 min, no pasa nada (pruebas: menos)
+_ida = threading.Lock()
+PENSAR = (
+    'El Maestro cerró la página y se fue. Antes de dormirte piensas en él: con lo que hablaron hoy y lo que sabes '
+    'de él, piensa qué va a necesitar o qué le conviene la próxima vez (un examen o tarea que tiene, un plan, algo '
+    'que quedó pendiente, algo que le gustó para repetir). puntos: 2 o 3 cosas CONCRETAS, cada una en una frase '
+    'corta de máximo 100 caracteres, hablándole de tú. dicho: lo que le dirás en voz alta cuando vuelva, máximo 200 '
+    'caracteres, empezando con alegría porque volvió y contándole lo que pensaste. No inventes datos que no estén '
+    'en el texto; si no hay nada concreto, propón algo según sus gustos. Sin emojis ni asteriscos en dicho (se lee en '
+    'voz alta). Responde SOLO JSON: {"puntos": ["..."], "dicho": "..."}'
+)
+
+
+def pestana_de(datos):
+    pestana = str(datos.get('pestana') or '')[:40]
+    return pestana if re.fullmatch(r'[a-z0-9-]{6,40}', pestana) else ''
+
+
+def presente(datos):
+    pestana = pestana_de(datos)
+    if pestana:
+        PESTANAS[pestana] = time.time()
+    return {'ok': True}
+
+
+def me_voy(datos):
+    PESTANAS.pop(pestana_de(datos), None)
+    hasta = time.time()
+    threading.Timer(ESPERA_IDA, revisar_ida, args=(hasta,)).start()
+    return {'ok': True}
+
+
+def revisar_ida(se_fue):
+    ahora = time.time()
+    for pestana, cuando in list(PESTANAS.items()):
+        if ahora - cuando > VIVA:
+            PESTANAS.pop(pestana, None)
+    if PESTANAS:
+        return  # sigue abierta en otro lado (o la volvio a abrir)
+    with _ida:
+        memo = memoria.leer(memoria.MAESTRO)
+        if memo.get('se_fue') and memo['se_fue'] >= se_fue - ESPERA_IDA:
+            return  # ya se anoto esta ida
+        memo['se_fue'] = se_fue
+        memoria.guardar(memoria.MAESTRO, memo)
+    pensado = memo.get('pensado') or {}
+    if memo.get('ultima', 0) > pensado.get('cuando', 0):  # solo si hablaron desde la ultima vez que penso
+        threading.Thread(target=pensar_al_irse, daemon=True).start()
+
+
+def pensar_al_irse():
+    memo = memoria.leer(memoria.MAESTRO)
+    partes = []
+    if memo.get('nombre'):
+        partes.append('Se llama ' + memo['nombre'] + '.')
+    if memo.get('ultimos_mensajes'):
+        partes.append('Lo último que te dijo: ' + ' | '.join(memo['ultimos_mensajes'][-12:]))
+    if memo.get('pendientes'):
+        partes.append('Cosas para preguntarle: ' + '; '.join(p['texto'] for p in memo['pendientes'][-5:]))
+    if memo.get('datos'):
+        partes.append('Lo que sabes de él: ' + '; '.join(d['texto'] for d in memo['datos'][-15:]))
+    if memo.get('vivencias'):
+        partes.append('Lo que hicieron juntos: ' + '; '.join(v['texto'] for v in memo['vivencias'][-8:]))
+    if memo.get('gustos'):
+        partes.append('Sus gustos: ' + ', '.join(list(memo['gustos'])[:12]))
+    try:
+        salida = pedir_json(PENSAR, ' / '.join(partes) or 'Todavía no sabes mucho de él.', sin_groq=True, max_tokens=500)
+        puntos = [re.sub(r'\s+', ' ', str(p)).strip()[:120] for p in (salida.get('puntos') or []) if str(p).strip()][:3]
+        dicho = re.sub(r'\s+', ' ', str(salida.get('dicho') or '')).strip()[:260]
+        if len(dicho) >= 260:  # no cortar a media palabra: hasta la ultima frase completa
+            fin = max(dicho.rfind(c) for c in '.!?')
+            dicho = dicho[:fin + 1] if fin > 60 else dicho.rsplit(' ', 1)[0] + '…'
+    except Exception as e:
+        print('pensar al irse fallo:', str(e)[:150])
+        return
+    if not puntos or not dicho:
+        return
+    fresca = memoria.leer(memoria.MAESTRO)
+    fresca['pensado'] = {'puntos': puntos, 'dicho': dicho, 'cuando': time.time(), 'contado': False}
+    memoria.guardar(memoria.MAESTRO, fresca)
+    memoria.vivir(memoria.MAESTRO, 'mientras el Maestro no estaba pensé en él: ' + '; '.join(puntos))
+
+
+def al_volver(datos):
+    """La pagina recien abierta pregunta si Filo se durmio y que penso. Se cuenta una sola vez."""
+    presente(datos)
+    with _ida:
+        memo = memoria.leer(memoria.MAESTRO)
+        se_fue = memo.pop('se_fue', 0)
+        pensado = memo.get('pensado') or {}
+        if se_fue:
+            memoria.guardar(memoria.MAESTRO, memo)
+    return {'se_fue': se_fue, 'ahora': time.time(), 'espera': ESPERA_IDA,
+            'pensado': pensado if pensado.get('puntos') and not pensado.get('contado') else None}
+
+
+def pensado_contado(datos):
+    memo = memoria.leer(memoria.MAESTRO)
+    if memo.get('pensado'):
+        memo['pensado']['contado'] = True
+        memoria.guardar(memoria.MAESTRO, memo)
+    return {'ok': True}
+
+
 class Manejador(SimpleHTTPRequestHandler):
     extensions_map = {**SimpleHTTPRequestHandler.extensions_map, '.webp': 'image/webp'}  # la ropa de Filo es webp
 
@@ -593,6 +703,10 @@ class Manejador(SimpleHTTPRequestHandler):
             '/ropa-cambiar': taller.cambiar,
             '/ropa-frase-dicha': taller.ropa_frase_dicha,
             '/frase-dicha': taller.frase_dicha,
+            '/presente': presente,
+            '/me-voy': me_voy,
+            '/al-volver': al_volver,
+            '/pensado-contado': pensado_contado,
         }
         if self.path not in rutas:
             return self.enviar_json(404, {'error': 'no existe'})
