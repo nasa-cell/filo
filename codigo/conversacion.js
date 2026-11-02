@@ -762,7 +762,8 @@
       seguirHablando(FF.esperando.video, FF.esperando.sigue);
       aviso('Buscando en YouTube…', 'voz');
       const r = await fetch('/youtube?q=' + encodeURIComponent(acc.consulta));
-      const { videos } = await r.json();
+      const { videos, agotado } = await r.json();
+      if (agotado) { await terminaRelleno(); return decir('Ya te puse todos los que encontré de eso, Maestro. ¿Te pongo algo parecido o de otro artista?', 'pena'); }
       if (!videos || !videos.length) return decirFrase('sinVideos');
       await terminaRelleno();
       const ok = await A().mostrarVideo(videos, acc.titulo);
@@ -780,7 +781,9 @@
         const res = await postJson('/buscar', { consulta: acc.consulta, mensaje });
         await terminaRelleno();
         detalleUltimo = res.detalle || '';
-        if (res.resultados && res.resultados.length) A().mostrarResultados(acc.consulta, res.resultados, { leidas: res.leidas, resumen: res.respuesta, detalle: detalleUltimo });
+        if (res.resultados && res.resultados.length) {
+          A().mostrarNerd({ titulo: res.titulo || acc.titulo || acc.consulta, texto: detalleUltimo || ('= ' + res.respuesta), fuentes: res.resultados, leidas: res.leidas });
+        }
         fijarseComida(acc.consulta, res.respuesta);
         return await decir(res.respuesta, res.emocion);
       } finally { clearTimeout(leyendo); ocasion.buscando = false; }
@@ -795,10 +798,25 @@
       const d = await postJson('/explicar', { url, mensaje });
       await terminaRelleno();
       detalleUltimo = d.detalle || '';
-      A().mostrarEnlace(d);
+      A().mostrarNerd({ titulo: d.titulo || d.sitio, texto: detalleUltimo || ('= ' + d.respuesta), enlace: d.url, captura: d.captura });
       historial.push({ rol: 'usuario', texto: mensaje }, { rol: 'filo', texto: d.respuesta });
       return await decir(d.respuesta, d.emocion);
     } finally { ocasion.buscando = false; }
+  }
+  // la tarjeta nerd tiene marcas (titulos, listas, tablas): en voz se leen como frases normales
+  function paraVoz(texto) {
+    let encabezado = null;
+    return String(texto || '').split('\n').map((l) => l.trim()).filter(Boolean).map((l) => {
+      if (/^\|[\s:|-]+\|$/.test(l)) return '';
+      if (/^\|.*\|$/.test(l)) {
+        const celdas = l.slice(1, -1).split('|').map((c) => c.replace(/\*\*/g, '').trim());
+        if (!encabezado) { encabezado = celdas; return ''; }
+        return celdas.map((c, i) => (i && encabezado[i] ? encabezado[i] + ': ' : '') + c).join(', ') + '.';
+      }
+      encabezado = null;
+      l = l.replace(/^=\s*/, '').replace(/^#+\s*/, '').replace(/^(?:[-•*]|\d+[.)])\s+/, '').replace(/\*\*/g, '');
+      return /[.!?:…]$/.test(l) ? l : l + '.';
+    }).filter(Boolean).join(' ');
   }
   function contarMas(detalle) {
     detalleUltimo = '';  // ya lo conto: si lo vuelven a pedir, pregunta a la IA
@@ -806,7 +824,7 @@
     callar();
     const ponerLentes = (si) => filos().forEach((f) => f.lentes && f.lentes(si));
     ponerLentes(true);  // modo nerd: se pone sus lentes de corazon mientras explica
-    decir(detalle, 'orgullosa').finally(() => ponerLentes(false));
+    decir(paraVoz(detalle), 'orgullosa').finally(() => ponerLentes(false));
   }
   window.FiloAcciones.alPedirMas(contarMas);
   async function dibujarOtraVez(dibujo) {
@@ -838,6 +856,8 @@
   // mientras habla y sale una burbujita con lo que dijo. Al terminar dice con su voz lo que sintio.
   const sentidos = {};  // id -> { listo: promesa, datos, dichos: Set }
   window.FiloAcciones.alEmpezarVideo((v) => {
+    // Filo recuerda lo que ya puso para no repetirlo (servidor.py: video_puesto)
+    postJson('/video-puesto', { id: v.id, titulo: v.titulo, canal: v.canal }).catch(() => {});
     if (sentidos[v.id]) return;
     const s = sentidos[v.id] = { datos: null, dichos: new Set() };
     s.listo = fetch('/sentir-video?' + new URLSearchParams({ id: v.id, titulo: v.titulo, duracion: v.duracion || '' }))
@@ -970,6 +990,7 @@
         await hacer(d, mensaje);
       } else {
         await terminaRelleno();
+        if (d.nerd) { detalleUltimo = d.nerd; A().mostrarNerd({ titulo: d.titulo, texto: d.nerd }); }
         decir(d.respuesta, d.emocion).then(() => { if (guardar) decirEstreno(); });
       }
     } catch (err) {

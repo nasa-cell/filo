@@ -142,6 +142,31 @@ def instrucciones():
             + time.strftime('%d/%m/%Y') + ' y son las ' + time.strftime('%H:%M') + '.)')
 
 
+# ---------- respuestas exactas: voz corta + tarjeta modo nerd en pantalla ----------
+NERD = (
+    ' FORMATO DE ESTA RESPUESTA: «respuesta» es lo que dices en voz alta (las reglas de voz de arriba: sin listas ni '
+    'emojis). Si el Maestro pregunta algo de información, estudio, tarea, ciencia, historia, cuentas, cómo funciona o '
+    'cómo se hace algo, o te muestra una imagen: «respuesta» = la respuesta EXACTA en 1 a 3 frases (máximo 45 '
+    'palabras) con los datos clave (números con unidades, nombres, fechas), sin rodeos, sin bromas y sin hablar de '
+    'ti; y «nerd» = la respuesta completa de experta, como ChatGPT, que se MUESTRA en pantalla (no se lee): de 80 a '
+    '300 palabras, sin emojis; la PRIMERA línea empieza con «= » y es la respuesta directa; luego secciones con '
+    '«## Título», listas con «- » o «1. », tablas con filas «| a | b |» (la primera es el encabezado) y lo importante '
+    'en **negrita**; cuentas con TODOS los pasos y la comprobación; datos precisos; si algo no lo sabes seguro, dilo. '
+    'Si hay una imagen, en «nerd» pon «## Lo que veo» con lo que hay exactamente (textos y números copiados tal cual, '
+    'objetos, colores) y, si es un ejercicio o problema, «## Paso a paso» resolviéndolo. Tu personalidad de Filo en '
+    'la tarjeta solo en una frase corta al final. «titulo» = tema de la tarjeta (máximo 6 palabras). Si solo '
+    'conversa contigo (saludo, cariño, juegos, contarte algo de su día), «nerd» y «titulo» van vacíos.'
+)
+ES_PREGUNTA = re.compile(r'(expl[ií]ca(me)?|resuelve|calcula|define|tarea|ejercicio|ecuaci[oó]n|f[oó]rmula|cu[aá]nto es|'
+                         r'diferencia entre|para qu[eé] sirve|ay[uú]dame con|qu[eé] significa|c[oó]mo funciona|'
+                         r'c[oó]mo se hace|demuestra|traduce)', re.I)
+
+
+def es_pregunta(mensaje):
+    """Pregunta seria (estudio, datos, cuentas): la responde Gemini, que es mas preciso que Qwen."""
+    return bool(ES_PREGUNTA.search(mensaje) or (acciones.PREGUNTA.search(mensaje) and not acciones.CHARLA.search(mensaje)))
+
+
 def imagen_valida(imagen):
     if isinstance(imagen, str) and imagen.startswith('data:image/jpeg;base64,') and len(imagen) < 3_000_000:
         base64.b64decode(imagen.split(',', 1)[1], validate=True)
@@ -154,13 +179,18 @@ def limpiar_salida(salida):
         raise ValueError('respuesta vacia')
     if salida.get('emocion') not in EMOCIONES:
         salida['emocion'] = 'normal'
-    return {'respuesta': str(salida['respuesta']).strip(), 'emocion': salida['emocion']}
+    limpia = {'respuesta': str(salida['respuesta']).strip(), 'emocion': salida['emocion']}
+    nerd = str(salida.get('nerd') or '').strip()
+    if len(nerd) > 40:  # tarjeta modo nerd (solo en preguntas serias y fotos)
+        limpia['nerd'] = nerd[:6000]
+        limpia['titulo'] = str(salida.get('titulo') or '').strip()[:60]
+    return limpia
 
 
 def responder_groq(mensaje, historial, imagen=None, lugar=None, con_clima=True):
     imagen = imagen_valida(imagen)
-    sistema = instrucciones() + (' Responde SOLO con un objeto JSON: {"respuesta": "lo que dices", "emocion": "una de: '
-                                 + ', '.join(EMOCIONES) + '"}.')
+    sistema = instrucciones() + NERD + (' Responde SOLO con un objeto JSON: {"respuesta": "lo que dices", "nerd": "", '
+                                        '"titulo": "", "emocion": "una de: ' + ', '.join(EMOCIONES) + '"}.')
     mensajes = [{'role': 'system', 'content': sistema}]
     for h in historial[-16:]:
         mensajes.append({'role': 'user' if h.get('rol') == 'usuario' else 'assistant', 'content': str(h.get('texto', ''))[:500]})
@@ -174,7 +204,7 @@ def responder_groq(mensaje, historial, imagen=None, lugar=None, con_clima=True):
     else:
         contenido = texto
     mensajes.append({'role': 'user', 'content': contenido})
-    return limpiar_salida(pedir_groq(mensajes, 0.75, 500))
+    return limpiar_salida(pedir_groq(mensajes, 0.75, 1500))
 
 
 # Groq gratis tiene limite por minuto en cada modelo: si Qwen dice «demasiados pedidos» (429) o falla,
@@ -207,6 +237,15 @@ def responder(mensaje, historial, imagen=None, lugar=None):
     if not clave('GROQ_API_KEY'):
         return responder_gemini(mensaje, historial, imagen, lugar)
     con_imagen = bool(imagen_valida(imagen))
+    if con_imagen or es_pregunta(mensaje):
+        # preguntas serias y fotos: siempre Gemini (mas preciso); Qwen solo si Gemini falla
+        try:
+            return responder_gemini(mensaje, historial, imagen, lugar)
+        except Exception as e:
+            print('gemini fallo, responde qwen:', str(e)[:150])
+            if con_imagen:
+                raise
+            return responder_groq(mensaje, historial, None, lugar)
     hilos = ThreadPoolExecutor(2)
     # copy_context: los hilos tambien ven lo que Filo recuerda del Maestro
     tareas = {hilos.submit(contextvars.copy_context().run, responder_gemini, mensaje, historial, imagen, lugar): 'gemini'}
@@ -241,15 +280,16 @@ def responder_gemini(mensaje, historial, imagen=None, lugar=None):
         partes.append({'text': '(Esta es la imagen que te muestra el Maestro ahora, de una foto o de su cámara.)'})
     contenidos.append({'role': 'user', 'parts': partes})
     cuerpo = {
-        'systemInstruction': {'parts': [{'text': PERSONA + ' (Dato solo por si te preguntan la fecha o la hora: hoy es ' + DIAS[time.localtime().tm_wday] + ' ' + time.strftime('%d/%m/%Y') + ' y son las ' + time.strftime('%H:%M') + '.)'}]},
+        'systemInstruction': {'parts': [{'text': instrucciones() + NERD}]},
         'contents': contenidos,
         'generationConfig': {
-            'temperature': 0.75,
-            'maxOutputTokens': 500,
+            'temperature': 0.6,
+            'maxOutputTokens': 2000,
             'responseMimeType': 'application/json',
             'responseSchema': {
                 'type': 'OBJECT',
-                'properties': {'respuesta': {'type': 'STRING'}, 'emocion': {'type': 'STRING', 'enum': EMOCIONES}},
+                'properties': {'respuesta': {'type': 'STRING'}, 'nerd': {'type': 'STRING'}, 'titulo': {'type': 'STRING'},
+                               'emocion': {'type': 'STRING', 'enum': EMOCIONES}},
                 'required': ['respuesta', 'emocion'],
             },
         },
@@ -262,10 +302,7 @@ def responder_gemini(mensaje, historial, imagen=None, lugar=None):
     with urllib.request.urlopen(pedido, timeout=30) as r:
         datos = json.load(r)
     texto = datos['candidates'][0]['content']['parts'][0]['text']
-    salida = json.loads(texto)
-    if salida.get('emocion') not in EMOCIONES:
-        salida['emocion'] = 'normal'
-    return salida
+    return limpiar_salida(json.loads(texto))
 
 
 def pedir_json(tarea, texto, sin_groq=False, max_tokens=700):
@@ -439,7 +476,8 @@ def conversar(datos, mensaje):
     if not imagen_valida(imagen) and not datos.get('sin_accion'):
         try:
             modo = datos.get('modo') if datos.get('modo') in ('youtube', 'busqueda') else ('youtube' if datos.get('modo_youtube') else 'normal')
-            plan = acciones.planear(mensaje, pedir_json, datos.get('historial') or [], modo)
+            puestos = memoria.leer(memoria.MAESTRO).get('videos_puestos') or []
+            plan = acciones.planear(mensaje, pedir_json, datos.get('historial') or [], modo, puestos)
         except Exception as e:
             plan = None
             print('planear fallo:', str(e)[:150])
@@ -529,12 +567,13 @@ _ida = threading.Lock()
 ENTRE_PENSAR = 3 * 3600  # sin charla nueva, piensa como mucho una vez cada 3 horas (cuida la cuota gratis)
 PENSAR = (
     '{situacion} Antes de dormirte piensas en él: con lo que hablaron y lo que sabes '
-    'de él, piensa qué va a necesitar o qué le conviene la próxima vez (un examen o tarea que tiene, un plan, algo '
-    'que quedó pendiente, algo que le gustó para repetir). puntos: 2 o 3 cosas CONCRETAS, cada una en una frase '
-    'completa de máximo 100 caracteres, en primera persona y hablándole de tú (por ejemplo: «Preguntarte cómo te fue en '
-    'el examen.»), nunca de él en tercera persona. dicho: lo que le dirás en voz alta cuando vuelva, máximo 200 '
-    'caracteres, empezando con alegría porque volvió y contándole lo que pensaste. No inventes datos que no estén '
-    'en el texto; si no hay nada concreto, propón algo según sus gustos. Sin emojis ni asteriscos en dicho (se lee en '
+    'de él, piensa qué va a necesitar o qué le conviene la próxima vez (algo que él te contó que tiene pendiente, '
+    'algo que le gustó para repetir, un plan que él mencionó). REGLA MÁS IMPORTANTE: usa SOLO cosas que están '
+    'escritas en el texto que te paso; nunca inventes exámenes, tareas, planes ni problemas que no estén ahí. '
+    'puntos: 2 o 3 cosas CONCRETAS, cada una en una frase completa de máximo 100 caracteres, en primera persona y '
+    'hablándole de tú (forma: «Preguntarte [algo que él te contó].»), nunca de él en tercera persona. dicho: lo que '
+    'le dirás en voz alta cuando vuelva, máximo 200 caracteres, empezando con alegría porque volvió y contándole lo '
+    'que pensaste. Si no hay nada concreto, propón algo según sus gustos (una canción, un juego, un dibujo). Sin emojis ni asteriscos en dicho (se lee en '
     'voz alta). Responde SOLO JSON: {"puntos": ["..."], "dicho": "..."}'
 )
 
@@ -682,6 +721,23 @@ def al_volver(datos):
             'pensado': pensado if pensado.get('puntos') and not pensado.get('contado') else None}
 
 
+VIDEOS_RECORDADOS = 300
+
+
+def video_puesto(datos):
+    """El video empezo a sonar: Filo lo recuerda para no repetirlo (los ultimos 300)."""
+    vid = str(datos.get('id') or '')[:20]
+    if not re.fullmatch(r'[A-Za-z0-9_-]{6,20}', vid):
+        return {'ok': False}
+    memo = memoria.leer(memoria.MAESTRO)
+    lista = [v for v in memo.get('videos_puestos') or [] if v.get('id') != vid]
+    lista.append({'id': vid, 'titulo': str(datos.get('titulo') or '')[:120], 'canal': str(datos.get('canal') or '')[:60],
+                  'cuando': time.time()})
+    memo['videos_puestos'] = lista[-VIDEOS_RECORDADOS:]
+    memoria.guardar(memoria.MAESTRO, memo)
+    return {'ok': True}
+
+
 def pensado_contado(datos):
     memo = memoria.leer(memoria.MAESTRO)
     if memo.get('pensado'):
@@ -773,6 +829,7 @@ class Manejador(SimpleHTTPRequestHandler):
             '/al-volver': al_volver,
             '/pensado-contado': pensado_contado,
             '/pensar-sola': pensar_sola,
+            '/video-puesto': video_puesto,
         }
         if self.path not in rutas:
             return self.enviar_json(404, {'error': 'no existe'})
@@ -813,7 +870,9 @@ class Manejador(SimpleHTTPRequestHandler):
         if ruta.path in ('/youtube', '/leer', '/sentir-video'):
             try:
                 if ruta.path == '/youtube':
-                    salida = {'videos': acciones.buscar_youtube(pedido_get.get('q', [''])[0][:200])}
+                    ya = [v.get('id') for v in memoria.leer(memoria.MAESTRO).get('videos_puestos') or []]
+                    videos, agotado = acciones.buscar_sin_repetir(pedido_get.get('q', [''])[0][:200], ya)
+                    salida = {'videos': videos, 'agotado': agotado}
                 elif ruta.path == '/sentir-video':
                     uno = lambda k: pedido_get.get(k, [''])[0]
                     salida = sentir_video(uno('id'), uno('titulo'), uno('duracion'))

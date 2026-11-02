@@ -68,7 +68,8 @@ body > *:not(.fondo) { position: relative; z-index: 1; }
 .lado { position: absolute; right: 4%; top: 64px; z-index: 3; }
 .mini { font: inherit; font-weight: 900; width: 38px; height: 38px; border-radius: 50%; border: 2px solid var(--azul); background: #fff; color: var(--azul); cursor: pointer; flex: none; display: grid; place-items: center; }
 .mini:hover { background: #eaf1ff; }
-.mini.cerrar { position: absolute; top: -12px; right: -12px; box-shadow: 0 4px 10px rgba(0, 0, 0, .3); }
+/* la ✕ va DENTRO del cuadro, arriba a la derecha: antes colgaba de la esquina y chocaba con lo de al lado */
+.mini.cerrar { position: absolute; top: 8px; right: 8px; z-index: 2; width: 32px; height: 32px; box-shadow: 0 2px 6px rgba(0, 0, 0, .25); }
 .mq-btn { font: inherit; font-weight: 800; border-radius: 12px; padding: 10px 14px; cursor: pointer; border: 2px solid var(--azul); background: #fff; color: var(--azul); text-decoration: none; display: inline-block; }
 .mq-btn.lleno { background: var(--azul); color: #fff; }
 /* dibujo: foto instantanea que flota */
@@ -259,7 +260,7 @@ body > .grande { position: fixed; inset: 0; z-index: 8; background: rgba(5, 15, 
 @media (prefers-reduced-motion: reduce) { .confirmar { animation: none; } }
 
 /* celular: la ✕ del panel no se sale por el borde de la pantalla */
-@media (max-width: 700px) { .mini.cerrar { top: -10px; right: -2px; } }
+
 
 /* ropa de Filo (codigo/ropa.js): entra con un saltito y las notas o la lupa flotan */
 .ropa-entra { animation: ropa-entra .45s cubic-bezier(.2, .9, .3, 1.4); transform-box: fill-box; transform-origin: center; }
@@ -306,3 +307,33 @@ body > .grande { position: fixed; inset: 0; z-index: 8; background: rgba(5, 15, 
   .escenario:has(> .estado[data-tipo="siente"]:not([hidden])) > .lado[data-tipo="nota"] { top: 96px; }
 }
 @media (prefers-reduced-motion: reduce) { .nube-idea { animation: none; } }
+
+/* tarjeta modo nerd: usa el mismo lugar que los resultados (su propia columna en PC, arriba en celular) */
+.resultados.nerd { color: #1d2433; line-height: 1.45; font-size: .93rem; padding: 0; border-color: var(--azul); }
+.nerd-titulo { position: sticky; top: 0; z-index: 1; background: var(--azul); color: #fff; font-weight: 900; padding: 10px 46px 10px 14px; border-radius: 12px 12px 0 0; }
+.nerd-cuerpo { padding: 10px 14px 0; overflow-wrap: anywhere; }
+.nerd-cuerpo p { margin: 0 0 8px; }
+.nerd-directa { font-weight: 900; font-size: 1.02rem; color: var(--azul-osc); background: #fff7d6; border-left: 4px solid var(--dorado); padding: 6px 10px; border-radius: 6px; }
+.nerd-sub { margin: 10px 14px 4px; font-size: .92rem; color: var(--azul); }
+.nerd-cuerpo .nerd-sub { margin: 10px 0 4px; }
+.nerd-cuerpo ul, .nerd-cuerpo ol { margin: 0 0 8px; padding-left: 22px; }
+.nerd-cuerpo li { margin-bottom: 3px; }
+.nerd-tabla-caja { overflow-x: auto; margin: 0 0 8px; }
+.nerd-tabla { border-collapse: collapse; width: 100%; font-size: .86rem; }
+.nerd-tabla th, .nerd-tabla td { border: 1px solid #dbe3f5; padding: 4px 7px; text-align: left; vertical-align: top; }
+.nerd-tabla th { background: #eef3ff; }
+.nerd .enlace-foto { display: block; width: calc(100% - 28px); margin: 10px 14px 0; }
+.nerd-fuentes { list-style: none; margin: 0 14px; padding: 0; display: grid; gap: 6px; }
+/* «Cuéntame más» siempre a la vista: pegado abajo DENTRO de la tarjeta, con espacio a los lados */
+.nerd .resultados-botones { position: sticky; bottom: 0; margin: 10px 0 0; padding: 14px 14px 12px; background: linear-gradient(rgba(255, 255, 255, 0), #fff 35%); border-radius: 0 0 12px 12px; }
+.libreta-titulo { padding-right: 40px; }
+.resultados-titulo { padding-right: 40px; }
+.nerd-titulo { padding-right: 52px; min-height: 48px; display: flex; align-items: center; }
+.lado > .resultados.nerd + .mini.cerrar { border-color: #fff; }
+@media (max-width: 700px) {
+  /* celular: la tarjeta nerd un poco mas alta y el boton mas compacto, para que se lea mas texto */
+  .resultados.nerd { max-height: 34vh; font-size: .9rem; }
+  .nerd-titulo { font-size: .92rem; min-height: 44px; padding-top: 8px; padding-bottom: 8px; }
+  .nerd .resultados-botones { padding: 8px 10px; background: linear-gradient(rgba(255, 255, 255, 0), #fff 25%); }
+  .nerd .resultados-botones .mq-btn { padding: 7px 16px; }
+}

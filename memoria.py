@@ -189,7 +189,7 @@ NIVELES = [
     ('Conocidos', 'Confianza con el Maestro: CONOCIDOS. Eres amable y curiosa: le preguntas cosas de él para conocerlo.'),
     ('Amigos', 'Confianza con el Maestro: AMIGOS. Eres más cariñosa, bromeas con él y mencionas lo que sabes de él.'),
     ('Mejores amigos', 'Confianza con el Maestro: MEJORES AMIGOS. Tienen bromas de ustedes dos, recuerdas por tu cuenta '
-     'cosas viejas que te contó y lo cuidas (si está cansado, triste o con examen).'),
+     'cosas viejas que te contó y lo cuidas (si te contó que está cansado o triste).'),
     ('Familia', 'Confianza con el Maestro: FAMILIA. Estás muy apegada a él, tienes celos suaves y a veces le dices lo '
      'importante que es para ti.'),
 ]
@@ -306,11 +306,14 @@ def nuevo_animo(memoria, emocion, mensaje):
 EXTRAER = (
     'Eres la memoria de Filo. Del mensaje del Maestro, saca SOLO datos que valga la pena recordar otros días: su '
     'nombre, gustos, familia, mascotas, estudios, trabajo, planes y cosas que le pasaron. No guardes preguntas '
-    'generales ni órdenes (dibuja, pon un video, busca). Escribe cada dato corto, en tercera persona y con la fecha '
-    'si importa (ej. "le gusta el anime Frieren", "tiene examen de matemáticas el lunes 3/11"). pendientes: cosas '
-    'para preguntarle después (ej. "cómo le fue en el examen"). gustos: temas que al Maestro le gustan o le '
-    'interesan y que salen en este mensaje, con nombre corto (ej. "Frieren", "fútbol", "dibujar"); si pide un video, '
-    'un dibujo o una búsqueda de algo, ese tema también es un gusto (ej. "pon el opening de Naruto" = "Naruto"); usa el mismo '
+    'generales ni órdenes (dibuja, pon un video, busca). REGLA MÁS IMPORTANTE: guarda SOLO lo que el Maestro dice '
+    'con sus palabras en ESTE mensaje, sobre él mismo; nunca supongas, completes ni inventes nada, y los modelos de '
+    'abajo (entre corchetes) NO son datos del Maestro, son solo la forma de escribir. Si es una broma, una pregunta '
+    'o algo dudoso, no lo guardes. Escribe cada dato corto, en tercera persona y con la fecha si él la dijo (forma: '
+    '"le gusta [tema]", "tiene [lo que dijo] el [día que dijo]"). pendientes: solo si él contó algo que va a pasar '
+    'y conviene preguntarle después (forma: "cómo le fue con [lo que contó]"). gustos: temas que al Maestro le '
+    'gustan o le interesan y que salen en este mensaje, con nombre corto; si pide un video, un dibujo o una '
+    'búsqueda de algo, ese tema también es un gusto (forma: "pon [algo]" = "[algo]"); usa el mismo '
     'nombre si ya está en «Gustos ya conocidos». Responde SOLO JSON: {"nombre": "" o el nombre si lo dijo, '
     '"datos": ["..."], "pendientes": ["..."], "gustos": ["..."]} (listas vacías si no hay nada nuevo).'
 )

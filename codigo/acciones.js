@@ -377,6 +377,89 @@
     lado.append(caja, boton('✕', 'Quitar la página', cerrarLado, 'mini cerrar'));
     lado.hidden = false;
   }
+  // ---------- tarjeta modo nerd: la respuesta completa de experta, escrita ----------
+  // el texto viene con marcas simples: «= » respuesta directa, «## » titulo, «- » o «1. » listas,
+  // «| a | b |» tablas y **negrita**. Todo se arma con textContent: nada del texto se vuelve codigo.
+  function conNegrita(padre, texto) {
+    texto.split(/(\*\*[^*]+\*\*)/).forEach((trozo) => {
+      if (/^\*\*[^*]+\*\*$/.test(trozo)) padre.append(crear('strong', '', trozo.slice(2, -2)));
+      else if (trozo) padre.append(document.createTextNode(trozo.replace(/\*\*/g, '')));
+    });
+    return padre;
+  }
+  function armarNerd(texto) {
+    const cuerpo = crear('div', 'nerd-cuerpo');
+    let lista = null, tabla = null;
+    const cerrar = () => { lista = null; tabla = null; };
+    texto.split('\n').map((l) => l.trim()).forEach((l) => {
+      if (!l) return cerrar();
+      if (/^\|.*\|$/.test(l)) {
+        if (/^\|[\s:|-]+\|$/.test(l)) return;  // fila de rayitas debajo del encabezado
+        const celdas = l.slice(1, -1).split('|').map((c) => c.trim());
+        if (!tabla) { lista = null; tabla = crear('table', 'nerd-tabla'); cuerpo.append(crear('div', 'nerd-tabla-caja')); cuerpo.lastChild.append(tabla); }
+        const fila = crear('tr');
+        const encabezado = !tabla.rows.length;
+        celdas.forEach((c) => fila.append(conNegrita(crear(encabezado ? 'th' : 'td'), c)));
+        tabla.append(fila);
+        return;
+      }
+      tabla = null;
+      const punto = l.match(/^(?:[-•*]|(\d+)[.)])\s+(.*)$/);
+      if (punto) {
+        const tipo = punto[1] ? 'ol' : 'ul';
+        if (!lista || lista.tagName.toLowerCase() !== tipo) { lista = crear(tipo); cuerpo.append(lista); }
+        lista.append(conNegrita(crear('li'), punto[2]));
+        return;
+      }
+      lista = null;
+      if (l.startsWith('= ')) return cuerpo.append(conNegrita(crear('p', 'nerd-directa'), l.slice(2)));
+      if (/^#{1,4}\s/.test(l)) return cuerpo.append(crear('h4', 'nerd-sub', l.replace(/^#+\s*/, '').replace(/\*\*/g, '')));
+      cuerpo.append(conNegrita(crear('p'), l));
+    });
+    return cuerpo;
+  }
+  // d: {titulo, texto, fuentes: [{titulo, url, resumen}], leidas, enlace, captura}
+  function mostrarNerd(d) {
+    cerrarLado();
+    const caja = crear('div', 'resultados nerd');
+    const cabeza = crear('div', 'nerd-titulo', '🤓 Modo nerd' + (d.titulo ? ' · ' + d.titulo : ''));
+    caja.append(cabeza);
+    if (d.captura) {
+      const foto = crear('img', 'enlace-foto');
+      foto.src = d.captura;
+      foto.alt = 'Foto de la página ' + (d.titulo || '');
+      foto.onerror = () => foto.remove();
+      foto.onclick = () => { const g = crear('img', 'ventana-img'); g.src = d.captura; g.alt = foto.alt; abrirGrande([crear('div', 'ventana-titulo', '🔗 ' + (d.titulo || '')), g], []); };
+      caja.append(foto);
+    }
+    caja.append(armarNerd(String(d.texto || '')));
+    if (d.fuentes && d.fuentes.length) {
+      caja.append(crear('h4', 'nerd-sub', 'Fuentes'));
+      const lista = crear('ol', 'nerd-fuentes');
+      d.fuentes.forEach((r, i) => {
+        const b = boton('', 'Abrir «' + r.titulo + '» aquí', () => leerPagina(r));
+        b.className = 'resultado';
+        b.append(crear('strong', '', r.titulo), crear('small', '', sitioDe(r.url)));
+        if (d.leidas && d.leidas[i]) b.append(crear('em', 'leida', '✓ leída'));
+        const li = crear('li');
+        li.append(b);
+        lista.append(li);
+      });
+      caja.append(lista);
+    }
+    // «Cuéntame más» siempre: Filo se pone los lentes y lo explica en voz alta
+    const botones = crear('div', 'resultados-botones');
+    botones.append(boton('🤓 Cuéntame más', 'Que Filo se ponga los lentes y te lo explique en voz alta', () => alPedirMas && alPedirMas(String(d.texto || '')), 'mq-btn lleno'));
+    if (d.enlace) {
+      const abrir = crear('a', 'mq-btn', '↗ Abrir página');
+      abrir.href = d.enlace; abrir.target = '_blank'; abrir.rel = 'noopener';
+      botones.append(abrir);
+    }
+    caja.append(botones);
+    lado.dataset.tipo = 'resultados';
+    lado.append(caja, boton('✕', 'Cerrar el modo nerd', cerrarLado, 'mini cerrar'));
+    lado.hidden = false;
+  }
   // libretita con lo que Filo penso mientras el Maestro no estaba (se cierra con ✕)
   function mostrarNota(titulo, puntos, pie) {
     cerrarLado();
@@ -409,7 +492,7 @@
   }
 
   window.FiloAcciones = {
-    nuevoDibujo, mostrarVideo, mostrarResultados, mostrarEnlace, mostrarNota, cerrarLado, cerrarGrande,
+    nuevoDibujo, mostrarVideo, mostrarResultados, mostrarEnlace, mostrarNota, mostrarNerd, cerrarLado, cerrarGrande,
     alPedirMas(f) { alPedirMas = f; },
     volumen: () => (reproductor && reproductor.getVolume ? reproductor.getVolume() : null),
     seguir, pausar, bajarVolumen, otroVideo, agrandar, estaSonando, descargar,

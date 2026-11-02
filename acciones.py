@@ -74,7 +74,20 @@ def _buscar_tal_cual(mensaje):
             'emocion': 'pensando', 'adivinanza': 'false'}
 
 
-def planear(mensaje, pedir_json, historial=(), modo='normal'):
+NO_REPETIR = (
+    " Si pide OTRA, MÁS, LA SIGUIENTE o algo DEL MISMO autor/artista/anime: usa el mismo artista o tema del último "
+    "video puesto y en consulta pon el nombre de OTRA canción o video suyo que NO esté en la lista de ya puestos "
+    "(si no conoces otra, pon el artista y la palabra canciones). Nunca pidas una que ya esté en la lista. "
+)
+
+
+def _ya_puestos(puestos):
+    """Lista corta para la IA: los ultimos videos que Filo ya puso (el mas nuevo al final)."""
+    lista = [f"«{v.get('titulo', '')}» de {v.get('canal', '')}" for v in list(puestos or [])[-15:] if isinstance(v, dict)]
+    return ('Videos que ya le pusiste (no los repitas; el último es el más reciente): ' + '; '.join(lista) + '\n\n') if lista else ''
+
+
+def planear(mensaje, pedir_json, historial=(), modo='normal', puestos=()):
     """Devuelve el plan si el mensaje pide dibujar, un video o buscar; si no, None.
     En modo YouTube o búsqueda la IA decide siempre (sin pistas), con preferencia por ese modo."""
     if modo not in MODOS and not PISTAS.search(mensaje):
@@ -82,14 +95,15 @@ def planear(mensaje, pedir_json, historial=(), modo='normal'):
     antes = '\n'.join(('Maestro: ' if h.get('rol') == 'usuario' else 'Filo: ') + str(h.get('texto', ''))[:200]
                       for h in list(historial)[-8:] if isinstance(h, dict))
     try:
-        plan = pedir_json(MODOS.get(modo, '') + PLAN, ('Conversación reciente:\n' + antes + '\n\n' if antes else '')
+        plan = pedir_json(MODOS.get(modo, '') + PLAN + NO_REPETIR, _ya_puestos(puestos)
+                          + ('Conversación reciente:\n' + antes + '\n\n' if antes else '')
                           + 'El Maestro dice ahora: «' + mensaje[:400] + '»')
     except Exception as e:
         # sin IA: una pregunta de informacion va a busqueda y un pedido de musica a video, en cualquier modo
         if modo == 'youtube' and not PREGUNTA.search(mensaje):
-            return planear_video(mensaje, pedir_json, historial)
+            return planear_video(mensaje, pedir_json, historial, puestos)
         if modo == 'busqueda' and MUSICA.search(mensaje):
-            return planear_video(mensaje, pedir_json, historial)
+            return planear_video(mensaje, pedir_json, historial, puestos)
         if modo in MODOS:
             return _buscar_tal_cual(mensaje)
         raise e
@@ -112,11 +126,12 @@ PLAN_VIDEO = (
 )
 
 
-def planear_video(mensaje, pedir_json, historial=()):
+def planear_video(mensaje, pedir_json, historial=(), puestos=()):
     antes = '\n'.join(('Maestro: ' if h.get('rol') == 'usuario' else 'Filo: ') + str(h.get('texto', ''))[:200]
                       for h in list(historial)[-6:] if isinstance(h, dict))
     try:
-        plan = pedir_json(PLAN_VIDEO, ('Conversación reciente:\n' + antes + '\n\n' if antes else '')
+        plan = pedir_json(PLAN_VIDEO + NO_REPETIR, _ya_puestos(puestos)
+                          + ('Conversación reciente:\n' + antes + '\n\n' if antes else '')
                           + 'El Maestro pide: «' + mensaje[:400] + '»')
     except Exception as e:
         print('planear_video fallo:', str(e)[:150])
@@ -290,6 +305,26 @@ def buscar_youtube(consulta):
         if len(videos) >= 8:
             break
     return videos
+
+
+def buscar_sin_repetir(consulta, ya_puestos):
+    """Videos de YouTube que Filo todavia no puso. Si todos ya sonaron, prueba otras dos busquedas parecidas.
+    Devuelve (videos, agotado): agotado es True si ya puso todo lo que encontro."""
+    vistos = set(ya_puestos)
+    nuevos, juntos = [], set()
+    for intento in (consulta, consulta + ' canciones', consulta + ' en vivo'):
+        try:
+            encontrados = buscar_youtube(intento)
+        except Exception as e:
+            print('youtube fallo:', str(e)[:150])
+            continue
+        for v in encontrados:
+            if v['id'] not in vistos and v['id'] not in juntos:
+                juntos.add(v['id'])
+                nuevos.append(v)
+        if len(nuevos) >= 3:
+            break
+    return nuevos[:8], not nuevos
 
 
 # ---------- internet ----------
@@ -482,29 +517,31 @@ def leer_pagina(url, limite=20000, espera=12, respaldo=True):
 
 # «cuéntame más»: Filo se pone sus lentes y explica como una nerd entusiasmada
 MODO_NERD = (
-    "El «detalle» es tu MODO NERD (te pones tus lentes): de 120 a 180 palabras, empiezas con algo como «¡Modo nerd "
-    "activado!» o «Ajustándome los lentes…» y explicas con entusiasmo de experta: datos exactos (números, fechas, "
-    "medidas, nombres), el porqué de las cosas y algún dato curioso o comparación fácil de imaginar. Todo sacado del "
-    "texto que te paso, sin inventar. "
+    "El «detalle» es tu TARJETA MODO NERD, escrita como una experta (como ChatGPT): se muestra en pantalla, no se lee "
+    "en voz alta. Entre 100 y 300 palabras, sin emojis. Formato: la PRIMERA línea empieza con «= » y es la respuesta "
+    "directa y exacta (el dato principal); luego secciones que empiezan con «## Título», listas con «- » o «1. », "
+    "tablas con filas «| a | b |» (la primera fila es el encabezado) y lo importante en **negrita**. Datos exactos "
+    "(números, fechas, medidas, nombres, unidades), el porqué y, si sirve, una comparación. Todo sacado del texto que "
+    "te paso, sin inventar; si un dato no está, dilo. Tu personalidad de Filo solo en una frase corta al final. "
+    "titulo: nombre corto del tema (máx. 6 palabras). "
 )
 RESPONDER_BUSQUEDA = (
     "Te paso resultados REALES de internet (varias páginas leídas). Responde la pregunta del Maestro usando SOLO esa "
-    "información (si no alcanza, dilo). En «respuesta» va lo principal: primera frase corta que ya responda y en total "
-    "máximo 60 palabras, citando de qué página sale el dato (por su nombre, no la dirección). En «detalle» explicas "
-    "más a fondo juntando lo que dicen las distintas páginas, para cuando el Maestro diga «cuéntame más». " + MODO_NERD +
-    "Sin listas ni emojis; con tu personalidad de Filo. "
+    "información (si no alcanza, dilo). En «respuesta» (se lee en voz alta) va la respuesta EXACTA: 1 a 3 frases, "
+    "máximo 45 palabras, con los datos concretos (números, nombres, fechas) y de qué página sale (por su nombre, no "
+    "la dirección); sin rodeos, sin listas ni emojis. En «detalle» juntas lo que dicen las distintas páginas. "
+    + MODO_NERD +
     "Reacciona con la emoción que te produce lo que encontraste (feliz, risa, emocionada, sorpresa, pensando, enojada, "
     "triste, pena, miedo, asco, timida, guino, amor, orgullosa o normal). "
-    'Responde SOLO con JSON: {"respuesta": "...", "detalle": "...", "emocion": "..."}.'
+    'Responde SOLO con JSON: {"respuesta": "...", "detalle": "...", "titulo": "...", "emocion": "..."}.'
 )
 EXPLICAR_ENLACE = (
     "El Maestro te pasó el enlace de una página y te pide que se la expliques. Te paso el texto REAL de esa página. "
-    "Explica usando SOLO ese texto (si casi no tiene texto o no se pudo leer, dilo). En «respuesta» va de qué trata la "
-    "página y lo más importante: primera frase corta y en total máximo 60 palabras. En «detalle» explicas más a fondo "
-    "para cuando diga «cuéntame más». " + MODO_NERD + "Si el Maestro pregunta algo concreto "
-    "sobre la página, responde eso primero. Sin listas ni emojis; con tu personalidad de Filo y la emoción que te "
-    "produce. "
-    'Responde SOLO con JSON: {"respuesta": "...", "detalle": "...", "emocion": "..."}.'
+    "Explica usando SOLO ese texto (si casi no tiene texto o no se pudo leer, dilo). En «respuesta» (se lee en voz "
+    "alta) va de qué trata la página y lo más importante, exacto: 1 a 3 frases, máximo 45 palabras, sin listas ni "
+    "emojis. En «detalle» explicas la página a fondo. " + MODO_NERD + "Si el Maestro pregunta algo concreto "
+    "sobre la página, responde eso primero. Emoción: la que te produce. "
+    'Responde SOLO con JSON: {"respuesta": "...", "detalle": "...", "titulo": "...", "emocion": "..."}.'
 )
 PAGINAS_A_LEER = 4  # se leen a la vez; si alguna tarda, se usa solo su resumen
 
@@ -524,7 +561,7 @@ def investigar(consulta, mensaje, pedir_json):
             parte += '\nTexto de la página: ' + lecturas[i][:2500]
         contexto.append(parte)
     salida = pedir_json(RESPONDER_BUSQUEDA, 'Pregunta del Maestro: «' + mensaje[:400] + '»\nBúsqueda: ' + consulta
-                        + '\n\nResultados:\n' + '\n\n'.join(contexto), max_tokens=1100)
+                        + '\n\nResultados:\n' + '\n\n'.join(contexto), sin_groq=True, max_tokens=1800)
     salida['resultados'] = resultados
     salida['leidas'] = [bool(x) for x in lecturas]
     return salida
@@ -558,7 +595,7 @@ def explicar_enlace(url, mensaje, pedir_json):
     sitio = (urllib.parse.urlparse(url).hostname or '').removeprefix('www.')
     if pagina['texto'].strip():
         salida = pedir_json(EXPLICAR_ENLACE, 'Lo que dice el Maestro: «' + mensaje[:400] + '»\nPágina: ' + pagina['titulo']
-                            + ' (' + sitio + ')\n\nTexto de la página:\n' + pagina['texto'][:7000], max_tokens=1100)
+                            + ' (' + sitio + ')\n\nTexto de la página:\n' + pagina['texto'][:7000], sin_groq=True, max_tokens=1800)
     else:
         salida = {'respuesta': 'Uy, Maestro, esa página no me dejó leerla. Puedes abrirla tú con el botón, ¿sí?',
                   'detalle': '', 'emocion': 'pena'}
