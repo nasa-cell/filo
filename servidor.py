@@ -338,6 +338,7 @@ def sentir_video(id_video, titulo, duracion):
     if len(_sentidos) > 200:
         _sentidos.clear()
     _sentidos[id_video] = limpio
+    memoria.vivir(memoria.MAESTRO, f'vi con el Maestro «{titulo[:70]}» y me sentí {limpio["emocion_final"]}: {limpio["final"][:120]}')
     return limpio
 
 
@@ -363,7 +364,16 @@ def hablar(datos):
     id_maestro = memoria.MAESTRO  # Filo es de un solo Maestro: la misma memoria en el PC, el celular y la nube
     mensaje = str(datos.get('mensaje', ''))
     memo = memoria.leer(id_maestro)
-    extra = memoria.contexto(memo, str(datos.get('hora') or '')[:60])
+    if not datos.get('sin_accion'):
+        if not memo.get('conocidos_desde'):
+            memo['conocidos_desde'] = time.time()  # desde hoy cuentan los dias juntos
+        if memo.get('ultima') and time.time() - memo['ultima'] > 30 * 60:
+            memo["charla_anterior"] = memo["ultima"]  # tras 30 min sin hablar empieza otra charla
+    extra = memoria.contexto(memo, str(datos.get('hora') or '')[:60], mensaje)
+    nivel_antes, nivel_ahora = int(memo.get('nivel') or 0), memoria.nivel(memo)
+    if nivel_ahora > nivel_antes and not datos.get('sin_accion'):
+        extra += (f' ¡Acabas de subir de confianza con el Maestro a «{memoria.NIVELES[nivel_ahora][0]}»! Díselo con '
+                  'alegría en esta respuesta, en una frase corta.')
     try:
         minutos = max(0, int(datos.get('minutos') or 0))
     except (TypeError, ValueError):
@@ -378,6 +388,12 @@ def hablar(datos):
     EXTRA.set(extra)
     volvio = memo.get('ultima') and time.time() - memo['ultima'] > 3 * 3600
     salida = conversar(datos, mensaje)
+    accion = salida.get('accion') or {}
+    que = accion.get('titulo') or accion.get('consulta') or ''
+    if accion.get('tipo') == 'dibujo' and que and not accion.get('adivinanza'):
+        memoria.vivir(id_maestro, f'dibujé para el Maestro: {que}')
+    elif accion.get('tipo') == 'video' and que:
+        memoria.vivir(id_maestro, f'le puse al Maestro en YouTube: {que}')
     emocion = salida.get('emocion', 'normal')
     salida['animo'] = memoria.nuevo_animo(memo, emocion, mensaje)
     if volvio:
@@ -385,12 +401,24 @@ def hablar(datos):
     if not datos.get('sin_accion'):
         memo['ultima'] = time.time()
         memo['visitas'] = memo.get('visitas', 0) + (1 if volvio or not memo.get('visitas') else 0)
+        memo['mensajes'] = memo.get('mensajes', 0) + 1
+        if mensaje.strip():
+            memo['ultimos_mensajes'] = (memo.get('ultimos_mensajes') or [])[-(memoria.CRECER_CADA - 1):] + [mensaje.strip()[:200]]
+        memo['nivel'] = nivel_ahora
     salida['cumple'] = es_su_cumple(memo, str(datos.get('hora') or ''))
-    memoria.guardar(id_maestro, memo)
+    # se guardan solo los campos que cambia esta charla: lo que aprendio en segundo plano mientras tanto no se pisa
+    fresca = memoria.leer(id_maestro)
+    for campo in ('animo', 'pendientes', 'ultima', 'visitas', 'mensajes', 'ultimos_mensajes', 'nivel',
+                  'conocidos_desde', 'charla_anterior'):
+        if campo in memo:
+            fresca[campo] = memo[campo]
+    memoria.guardar(id_maestro, fresca)
+    solo_gemini = lambda tarea, texto: pedir_json(tarea, texto, sin_groq=True)  # deja libre el cupo de Groq
     if not datos.get('sin_accion') and not datos.get('imagen'):
-        conocidos = [d['texto'] for d in memo.get('datos', [])]
-        solo_gemini = lambda tarea, texto: pedir_json(tarea, texto, sin_groq=True)  # deja libre el cupo de Groq
+        conocidos = [d['texto'] for d in fresca.get('datos', [])]
         threading.Thread(target=memoria.aprender, args=(id_maestro, mensaje, solo_gemini, conocidos), daemon=True).start()
+    if not datos.get('sin_accion') and fresca['mensajes'] % memoria.CRECER_CADA == 0:
+        threading.Thread(target=memoria.crecer, args=(id_maestro, solo_gemini), daemon=True).start()
     return salida
 
 
@@ -532,6 +560,10 @@ class Manejador(SimpleHTTPRequestHandler):
             salida = rutas[self.path](datos)
             if self.path in ('/buscar', '/explicar'):
                 salida.update(limpiar_salida(salida))
+                if salida.get('resultados') or self.path == '/explicar':
+                    hice = ('busqué con el Maestro «' + str(datos.get('consulta', ''))[:60] + '»' if self.path == '/buscar'
+                            else 'leí con el Maestro una página (' + str(salida.get('titulo') or datos.get('url', ''))[:60] + ')')
+                    memoria.vivir(memoria.MAESTRO, hice + ' y aprendí: ' + salida['respuesta'][:140])
             self.enviar_json(200, salida)
         except Exception as e:
             print(self.path, 'fallo:', str(e)[:200])

@@ -12,7 +12,10 @@ import threading
 import time
 
 CARPETA = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'datos_memoria')
-MAX_DATOS, MAX_PENDIENTES = 40, 10
+MAX_DATOS, MAX_PENDIENTES = 300, 10
+JUNTAR = 100  # al pasar de MAX_DATOS, los 100 recuerdos mas viejos se juntan en el resumen (no se pierden)
+CRECER_CADA = 20  # cada 20 mensajes Filo repasa como es el Maestro y como va cambiando ella
+PERU = -5 * 3600  # hora de Peru (en Render el reloj del servidor esta en UTC)
 MAESTRO = 'maestro-filo'
 _cerrojo = threading.Lock()
 _tabla_lista = False
@@ -45,7 +48,9 @@ def _id_valido(id_maestro):
 
 def vacia():
     return {'nombre': '', 'datos': [], 'pendientes': [], 'animo': {'emocion': 'normal', 'restantes': 0, 'motivo': ''},
-            'ultima': 0, 'visitas': 0, 'album': []}
+            'ultima': 0, 'visitas': 0, 'album': [],
+            'conocidos_desde': 0, 'charla_anterior': 0, 'mensajes': 0, 'nivel': 0, 'resumen': '',
+            'gustos': {}, 'como_soy': '', 'forma_maestro': '', 'ultimos_mensajes': [], 'vivencias': []}
 
 
 def leer(id_maestro):
@@ -84,7 +89,7 @@ def _leer_guardada(id_maestro):
 def guardar(id_maestro, memoria):
     if not _id_valido(id_maestro):
         return
-    memoria['datos'] = memoria.get('datos', [])[-MAX_DATOS:]
+    memoria['datos'] = memoria.get('datos', [])[-(MAX_DATOS + JUNTAR):]  # tope de seguridad si no se pudo resumir
     memoria['pendientes'] = memoria.get('pendientes', [])[-MAX_PENDIENTES:]
     _en_ram[id_maestro] = json.loads(json.dumps(memoria))
     # se escribe en Neon en segundo plano: la respuesta no espera
@@ -130,7 +135,110 @@ def _hace(segundos):
     return 'un día' if dias == 1 else f'{dias} días'
 
 
-def contexto(memoria, hora_maestro):
+def _fecha(t):
+    return time.strftime('%d/%m/%Y a las %H:%M', time.gmtime(t + PERU))
+
+
+def _hace_exacto(segundos):
+    """Tiempo pasado en palabras, con dias, horas y minutos."""
+    segundos = max(0, int(segundos))
+    dias, resto = divmod(segundos, 86400)
+    horas, resto = divmod(resto, 3600)
+    minutos = resto // 60
+    if not dias and not horas and not minutos:
+        return 'menos de un minuto'
+    trozos = []
+    if dias:
+        trozos.append('1 día' if dias == 1 else f'{dias} días')
+    if horas:
+        trozos.append('1 hora' if horas == 1 else f'{horas} horas')
+    if minutos and not dias:
+        trozos.append('1 minuto' if minutos == 1 else f'{minutos} minutos')
+    return ' y '.join(trozos)
+
+
+def _dias_juntos(memoria):
+    """Dias de calendario (hora de Peru) desde el dia en que se conocieron."""
+    desde = memoria.get('conocidos_desde') or time.time()
+    dia = lambda t: int((t + PERU) // 86400)
+    return dia(time.time()) - dia(desde)
+
+
+def _tiempo_juntos(memoria):
+    partes = []
+    ahora = time.time()
+    if memoria.get('conocidos_desde'):
+        n = _dias_juntos(memoria)
+        cuantos = 'hoy es su primer día juntos' if n == 0 else ('llevan 1 día juntos' if n == 1 else f'llevan {n} días juntos')
+        partes.append(f'Conociste al Maestro el {_fecha(memoria["conocidos_desde"])[:10]}: {cuantos}.')
+    if memoria.get('charla_anterior'):
+        t = memoria['charla_anterior']
+        partes.append(f'La charla anterior con el Maestro (antes de esta) fue el {_fecha(t)}, hace {_hace_exacto(ahora - t)}.')
+    if memoria.get('ultima'):
+        partes.append(f'El mensaje anterior del Maestro fue hace {_hace_exacto(ahora - memoria["ultima"])}.')
+    if partes:
+        partes.append('Si te pregunta cuánto tiempo o cuántos días pasaron, cuánto llevan juntos o cuándo hablaron, '
+                      'contesta con estos datos exactos (no digas que no sabes).')
+    return partes
+
+
+# niveles de confianza: (nombre, como se porta Filo)
+NIVELES = [
+    ('Conocidos', 'Confianza con el Maestro: CONOCIDOS. Eres amable y curiosa: le preguntas cosas de él para conocerlo.'),
+    ('Amigos', 'Confianza con el Maestro: AMIGOS. Eres más cariñosa, bromeas con él y mencionas lo que sabes de él.'),
+    ('Mejores amigos', 'Confianza con el Maestro: MEJORES AMIGOS. Tienen bromas de ustedes dos, recuerdas por tu cuenta '
+     'cosas viejas que te contó y lo cuidas (si está cansado, triste o con examen).'),
+    ('Familia', 'Confianza con el Maestro: FAMILIA. Estás muy apegada a él, tienes celos suaves y a veces le dices lo '
+     'importante que es para ti.'),
+]
+
+
+def nivel(memoria):
+    """Sube con los dias juntos, los mensajes y lo que sabe de el; nunca baja."""
+    dias = _dias_juntos(memoria)
+    trato = memoria.get('mensajes', 0) + 3 * (len(memoria.get('datos', [])) + JUNTAR * bool(memoria.get('resumen')))
+    calculado = 3 if dias >= 30 and trato >= 1000 else 2 if dias >= 10 and trato >= 400 else 1 if dias >= 3 or trato >= 100 else 0
+    return max(calculado, min(3, int(memoria.get('nivel') or 0)))
+
+
+def _palabras(texto):
+    return {p for p in re.findall(r'\w+', texto.lower()) if len(p) > 3}
+
+
+def _recuerdos(datos, mensaje, recientes=25, parecidos=10):
+    """Los recuerdos nuevos y los viejos que tienen que ver con lo que dice el Maestro."""
+    nuevos = datos[-recientes:]
+    viejos = datos[:-recientes] if len(datos) > recientes else []
+    pide = _palabras(mensaje or '')
+    if pide and viejos:
+        puntos = [(len(pide & _palabras(d['texto'])), i) for i, d in enumerate(viejos)]
+        elegidos = sorted(i for p, i in sorted(puntos, reverse=True)[:parecidos] if p > 0)
+        nuevos = [viejos[i] for i in elegidos] + nuevos
+    return [d['texto'] for d in nuevos]
+
+
+def _personalidad(memoria, mensaje=""):
+    partes = []
+    if memoria.get('como_soy'):
+        partes.append('Cómo eres ahora (has ido cambiando de a poco con el Maestro, sin dejar de ser Filo): '
+                      + memoria['como_soy'])
+    if memoria.get('forma_maestro'):
+        partes.append('Cómo es y cómo habla el Maestro: ' + memoria['forma_maestro'] + ' Se te va pegando su forma de '
+                      'ser: usa a veces sus palabras y su humor y contéstale con el largo que a él le gusta.')
+    gustos = sorted((memoria.get('gustos') or {}).items(), key=lambda g: -g[1].get('nivel', 0))[:10]
+    if gustos:
+        partes.append('Cosas que te empezaron a interesar por el Maestro (el número es cuánto te interesa): '
+                      + ', '.join(f'{tema} ({g.get("nivel", 1)})' for tema, g in gustos)
+                      + '. Las de 3 o más ya te gustan de verdad: a veces sácalas tú, opina y pregúntale; no en cada mensaje.')
+    vivencias = memoria.get('vivencias') or []
+    if vivencias:
+        elegidas = _recuerdos(vivencias, mensaje, recientes=8, parecidos=5)
+        partes.append('Cosas que viviste con el Maestro (dibujos, videos, búsquedas): ' + '; '.join(elegidas)
+                      + '. Puedes acordarte de ellas cuando venga al caso («¿te acuerdas de…?»).')
+    return partes
+
+
+def contexto(memoria, hora_maestro, mensaje=''):
     """Texto que se agrega a las instrucciones de Filo con lo que recuerda y su animo."""
     partes = []
     if hora_maestro:
@@ -138,9 +246,14 @@ def contexto(memoria, hora_maestro):
                       'buenas tardes, buenas noches; si es muy tarde dile que debería dormir; el fin de semana estás más juguetona).')
     if memoria.get('nombre'):
         partes.append(f'El Maestro se llama {memoria["nombre"]} (puedes llamarlo Maestro o por su nombre).')
+    partes += _tiempo_juntos(memoria)
+    partes.append(NIVELES[nivel(memoria)][1])
+    if memoria.get('resumen'):
+        partes.append('Resumen de lo que sabes del Maestro desde hace tiempo: ' + memoria['resumen'])
     if memoria.get('datos'):
         partes.append('Lo que recuerdas del Maestro (de otras conversaciones): '
-                      + '; '.join(d['texto'] for d in memoria['datos'][-25:]) + '.')
+                      + '; '.join(_recuerdos(memoria['datos'], mensaje)) + '.')
+    partes += _personalidad(memoria, mensaje)
     if memoria.get('ultima'):
         pasado = time.time() - memoria['ultima']
         if pasado > 3 * 3600:
@@ -193,8 +306,11 @@ EXTRAER = (
     'nombre, gustos, familia, mascotas, estudios, trabajo, planes y cosas que le pasaron. No guardes preguntas '
     'generales ni órdenes (dibuja, pon un video, busca). Escribe cada dato corto, en tercera persona y con la fecha '
     'si importa (ej. "le gusta el anime Frieren", "tiene examen de matemáticas el lunes 3/11"). pendientes: cosas '
-    'para preguntarle después (ej. "cómo le fue en el examen"). Responde SOLO JSON: {"nombre": "" o el nombre si lo '
-    'dijo, "datos": ["..."], "pendientes": ["..."]} (listas vacías si no hay nada nuevo).'
+    'para preguntarle después (ej. "cómo le fue en el examen"). gustos: temas que al Maestro le gustan o le '
+    'interesan y que salen en este mensaje, con nombre corto (ej. "Frieren", "fútbol", "dibujar"); si pide un video, '
+    'un dibujo o una búsqueda de algo, ese tema también es un gusto (ej. "pon el opening de Naruto" = "Naruto"); usa el mismo '
+    'nombre si ya está en «Gustos ya conocidos». Responde SOLO JSON: {"nombre": "" o el nombre si lo dijo, '
+    '"datos": ["..."], "pendientes": ["..."], "gustos": ["..."]} (listas vacías si no hay nada nuevo).'
 )
 
 
@@ -203,7 +319,9 @@ def aprender(id_maestro, mensaje, pedir_json, conocidos):
     if not _id_valido(id_maestro) or len(mensaje.split()) < 3:
         return
     try:
-        res = pedir_json(EXTRAER, 'Ya sabes: ' + ('; '.join(conocidos[-20:]) or 'nada') + '\nFecha: '
+        gustos_ya = ', '.join(leer(id_maestro).get('gustos') or {}) or 'ninguno'
+        res = pedir_json(EXTRAER, 'Ya sabes: ' + ('; '.join(conocidos[-20:]) or 'nada') + '\nGustos ya conocidos: '
+                         + gustos_ya + '\nFecha: '
                          + time.strftime('%d/%m/%Y') + '\nMensaje del Maestro: «' + mensaje[:500] + '»')
     except Exception as e:
         print('memoria: no se pudo aprender', str(e)[:150])
@@ -226,5 +344,108 @@ def aprender(id_maestro, mensaje, pedir_json, conocidos):
         if texto:
             memoria['pendientes'].append({'texto': texto, 'fecha': time.strftime('%Y-%m-%d')})
             cambio = True
+    gustos = memoria.setdefault('gustos', {})
+    for tema in res.get('gustos') or []:
+        tema = str(tema).strip()[:40]
+        if not tema:
+            continue
+        igual = next((t for t in gustos if t.lower() == tema.lower()), tema)
+        g = gustos.setdefault(igual, {'nivel': 0, 'desde': time.strftime('%Y-%m-%d')})
+        g['nivel'] = min(10, g.get('nivel', 0) + 1)  # cada vez que hablan del tema le interesa un poco mas
+        cambio = True
+    if len(gustos) > 60:  # se quedan los que mas le interesan
+        memoria['gustos'] = dict(sorted(gustos.items(), key=lambda g: -g[1].get('nivel', 0))[:60])
     if cambio:
         guardar(id_maestro, memoria)
+    if len(memoria.get('datos', [])) > MAX_DATOS:
+        juntar_recuerdos(id_maestro, pedir_json)
+
+
+MAX_VIVENCIAS = 100
+
+
+def vivir(id_maestro, texto):
+    """Filo guarda lo que vivio con el Maestro (dibujos, videos, busquedas, paginas)."""
+    texto = re.sub(r'\s+', ' ', str(texto or '')).strip()[:220]
+    if not _id_valido(id_maestro) or len(texto) < 8:
+        return
+    memoria = leer(id_maestro)
+    vivencias = memoria.setdefault('vivencias', [])
+    if vivencias and vivencias[-1]['texto'] == texto:
+        return
+    vivencias.append({'texto': texto, 'fecha': time.strftime('%Y-%m-%d', time.gmtime(time.time() + PERU))})
+    memoria['vivencias'] = vivencias[-MAX_VIVENCIAS:]
+    guardar(id_maestro, memoria)
+
+
+RESUMIR = (
+    'Eres la memoria de Filo. Junta en un solo resumen lo que ya sabías del Maestro y los recuerdos viejos que te '
+    'paso. No pierdas nada importante (nombre, familia, gustos, estudios, cosas que le pasaron, fechas clave); junta '
+    'lo repetido y quita lo que ya no sirve. Máximo 1500 caracteres, en tercera persona. Responde SOLO JSON: '
+    '{"resumen": "..."}'
+)
+
+
+def juntar_recuerdos(id_maestro, pedir_json):
+    """Los recuerdos mas viejos pasan al resumen en vez de borrarse."""
+    memoria = leer(id_maestro)
+    viejos = memoria.get('datos', [])[:JUNTAR]
+    if len(memoria.get('datos', [])) <= MAX_DATOS or not viejos:
+        return
+    try:
+        res = pedir_json(RESUMIR, 'Lo que ya sabías: ' + (memoria.get('resumen') or 'nada') + '\nRecuerdos viejos: '
+                         + '; '.join(f'{d["texto"]} ({d.get("fecha", "")})' for d in viejos))
+        resumen = str((res or {}).get('resumen') or '').strip()
+    except Exception as e:
+        print('memoria: no se pudo resumir', str(e)[:150])
+        return
+    if len(resumen) < 30:
+        return  # si el resumen sale mal, no se borra nada
+    memoria = leer(id_maestro)
+    textos = {d['texto'] for d in viejos}
+    memoria['datos'] = [d for d in memoria['datos'] if d['texto'] not in textos]
+    memoria['resumen'] = resumen[:2000]
+    guardar(id_maestro, memoria)
+
+
+CRECER = (
+    'Eres Filo (de «El héroe del escudo»): una filolial niña, alegre, glotona (ama la carne), cariñosa con su Maestro, '
+    'odia a Motoyasu. Esa base NUNCA cambia. Con el tiempo vas cambiando un poco por convivir con tu Maestro. Con sus '
+    'últimos mensajes, lo que sabes de él y cómo eras hasta ahora, escribe: forma_maestro: cómo es y cómo habla el '
+    'Maestro (humor, palabras que repite, si escribe corto o largo, qué temas le gustan), 2 o 3 frases. como_soy: '
+    'cómo eres TÚ ahora, en primera persona, máximo 600 caracteres: lo de antes con un cambio PEQUEÑO (un gusto nuevo, '
+    'una broma de ustedes, una palabra que se te pegó de él, algo que aprendiste). No borres lo que ya eras. No pongas '
+    'fechas, días ni cuánto tiempo pasó (eso cambia; aquí va solo tu forma de ser, tus gustos y costumbres). No cuentes lo que pasó hoy ni '
+    'saludes: describe cómo eres (ej. "me empezaron a gustar los dragones y las estrellas por el Maestro"). '
+    'Responde SOLO JSON: {"forma_maestro": "...", "como_soy": "..."}'
+)
+
+
+def crecer(id_maestro, pedir_json):
+    """Cada CRECER_CADA mensajes Filo aprende como es el Maestro y su personalidad cambia un poquito."""
+    memoria = leer(id_maestro)
+    mensajes = memoria.get('ultimos_mensajes') or []
+    if len(mensajes) < 5:
+        return
+    gustos = ', '.join(t for t, g in sorted((memoria.get('gustos') or {}).items(), key=lambda g: -g[1].get('nivel', 0))[:10])
+    try:
+        res = pedir_json(CRECER, 'Cómo eras hasta ahora: ' + (memoria.get('como_soy') or 'la Filo de siempre')
+                         + '\nCómo creías que era el Maestro: ' + (memoria.get('forma_maestro') or 'aún no sabes')
+                         + '\nSus gustos: ' + (gustos or 'aún no sabes')
+                         + '\nLo que viviste con él (dibujos, videos, búsquedas): '
+                         + ('; '.join(v['texto'] for v in (memoria.get('vivencias') or [])[-15:]) or 'nada aún')
+                         + '\nLo que sabes de él: ' + '; '.join(d['texto'] for d in memoria.get('datos', [])[-15:])
+                         + '\nSus últimos mensajes: ' + ' | '.join(mensajes))
+    except Exception as e:
+        print('memoria: no se pudo crecer', str(e)[:150])
+        return
+    if not isinstance(res, dict):
+        return
+    memoria = leer(id_maestro)
+    forma = str(res.get('forma_maestro') or '').strip()
+    soy = str(res.get('como_soy') or '').strip()
+    if len(forma) > 20:
+        memoria['forma_maestro'] = forma[:500]
+    if len(soy) > 30:
+        memoria['como_soy'] = soy[:700]
+    guardar(id_maestro, memoria)
