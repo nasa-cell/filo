@@ -732,22 +732,44 @@
   });
   const burbuja = $('burbuja-video');
   let opinando = false;
+  // la burbuja va debajo del video y del mismo ancho; si no cabe antes de la barra de escribir, la letra
+  // se achica (hasta 13 px) y si aun asi no cabe, va arriba del video. Nunca tapa el video ni la barra
+  function colocarBurbuja() {
+    if (burbuja.hidden) return;
+    const lado = $('lado');
+    const tele = (!lado.hidden && (lado.querySelector('.tele') || lado)) || null;
+    const grande = document.body.classList.contains('video-grande');
+    const piso = $('charla').getBoundingClientRect().top - 10;
+    const b = burbuja.style;
+    b.fontSize = ''; burbuja.classList.remove('arriba-del-video', 'sobre-el-video');
+    if (!tele) { b.left = '50%'; b.top = '64px'; b.width = 'max-content'; return; }
+    const v = tele.getBoundingClientRect();
+    b.left = Math.round(v.left + v.width / 2) + 'px';
+    b.width = Math.round(Math.min(v.width, innerWidth - 16)) + 'px';
+    const abajo = v.bottom + 14;
+    let letra = parseFloat(getComputedStyle(burbuja).fontSize);
+    while (burbuja.offsetHeight > piso - abajo && letra > 13) { letra = Math.max(13, letra - 1); b.fontSize = letra + 'px'; }
+    if (burbuja.offsetHeight <= piso - abajo) { b.top = Math.round(abajo) + 'px'; return; }
+    // arriba del video, sin subir sobre los botones de arriba (con el video en grande, hasta el borde)
+    const techo = grande ? 8 : lado.closest('.escenario').getBoundingClientRect().top;
+    const arriba = v.top - burbuja.offsetHeight - 14;
+    if (arriba >= techo) { burbuja.classList.add('arriba-del-video'); b.top = Math.round(arriba) + 'px'; return; }
+    // video en grande que llena la pantalla: va sobre la parte de abajo del video, como subtitulo
+    burbuja.classList.add('sobre-el-video');
+    b.top = Math.round(Math.min(v.bottom, piso) - burbuja.offsetHeight - 12) + 'px';
+  }
   async function opinarDelVideo(o) {
     opinando = true;
     burbuja.textContent = '💭 ' + o.texto;
     burbuja.hidden = false;
-    // en el celular el video ocupa la parte de arriba: la burbuja va justo debajo de el, sobre Filo
-    burbuja.style.top = '';
-    const lado = $('lado'), esc = burbuja.parentElement.getBoundingClientRect();
-    if (!lado.hidden) {
-      const v = lado.getBoundingClientRect(), bb = burbuja.getBoundingClientRect();
-      if (v.left < bb.right && v.right > bb.left && v.bottom > bb.top) burbuja.style.top = Math.round(v.bottom - esc.top + 14) + 'px';
-    }
+    colocarBurbuja();
+    const sigue = setInterval(colocarBurbuja, 400);  // por si agranda el video o gira el celular mientras habla
     A().bajarVolumen(true);
     try {
       await decir(o.texto, o.emocion);
     } finally {
       A().bajarVolumen(false);
+      clearInterval(sigue);
       burbuja.hidden = true;
       opinando = false;
     }
