@@ -238,12 +238,72 @@
       decir(...sacar(FF.sola));
       return contarQuieta();
     }
-    dormida = true;
-    antesDeDormir = reposo;
-    reposo = 'dormida';  // al terminar de hablar se queda dormida
-    decir(...sacar(FF.dormir)).then(() => { if (dormida) aviso('Filo se quedó dormida… 💤 (háblale o tócala para despertarla)'); });
+    // antes de dormirse piensa en el Maestro; si la tocan mientras piensa, no se duerme
+    pensarAntesDeDormir().then(() => {
+      if (avisosSolos < 2 || dormida) return;
+      dormida = true;
+      antesDeDormir = reposo;
+      reposo = 'dormida';  // al terminar de hablar se queda dormida
+      decir(...sacar(FF.dormir)).then(() => {
+        if (!dormida) return;
+        if (porContar) aviso('Filo pensó en ti y se durmió 💤 Tócala para que te cuente', 'siente');
+        else aviso('Filo se quedó dormida… 💤 (háblale o tócala para despertarla)');
+      });
+    });
   }
   let antesDeDormir = 'normal';
+
+  // ---------- sola con la pagina abierta: piensa en el Maestro antes de dormirse (servidor.py: pensar_sola) ----------
+  // la nube muestra las ideas de a una (sale una, se va, sale la otra): Filo no se achica y nada se corta.
+  // Al final todas quedan en la libretita y se las cuenta en voz alta cuando la toca.
+  let nubeTurno = 0;
+  async function pensarAntesDeDormir() {
+    if (location.protocol === 'file:' || porContar) return;
+    const mio = ++nubeTurno;
+    const nube = $('nube-pensar');
+    const poner = (titulo, texto) => {
+      nube.replaceChildren();
+      const t = document.createElement('div');
+      t.className = 'nube-titulo';
+      t.textContent = titulo;
+      nube.append(t);
+      if (texto) {
+        const idea = document.createElement('div');
+        idea.className = 'nube-idea';
+        idea.textContent = texto;
+        nube.append(idea);
+      }
+      nube.hidden = false;
+    };
+    poner('💭 Pensando en ti…');
+    expresion('pensando', 60000);
+    let d = null;
+    try {
+      const r = await enviarPestana('/pensar-sola');
+      d = r.ok ? await r.json() : null;
+    } catch (e) { /* sin internet: solo se duerme */ }
+    if (mio !== nubeTurno) return;
+    const p = d && d.pensado;
+    if (!p || !p.puntos || !p.puntos.length || !p.dicho) { nube.hidden = true; expresion(reposo, 0); return; }
+    porContar = p;
+    for (let i = 0; i < p.puntos.length; i++) {
+      poner('💭 Pensando en ti… (' + (i + 1) + ' de ' + p.puntos.length + ')', p.puntos[i]);
+      await esperar(Math.max(4500, p.puntos[i].length * 75));  // tiempo para leerla entera
+      if (mio !== nubeTurno) return;
+    }
+    nube.hidden = true;
+    expresion(reposo, 0);
+    mostrarLoPensado();
+  }
+  // la tocaron o le escribieron mientras pensaba: se quita la nube y lo pensado queda en la libretita
+  function cerrarNube() {
+    const nube = $('nube-pensar');
+    if (!nube || nube.hidden) return;
+    nubeTurno++;
+    nube.hidden = true;
+    expresion(reposo, 0);
+    if (porContar) mostrarLoPensado();
+  }
 
   // ---------- modo YouTube: todo lo que pide el Maestro se busca en YouTube ----------
   // «Filo, ponte modo YouTube» lo enciende y «sal del modo YouTube» lo apaga (tambien el boton de arriba)
@@ -407,7 +467,7 @@
     filos().forEach((f) => f.expresion('dormida'));
     aviso('Filo se durmió cuando te fuiste… 💤 Tócala o escríbele para despertarla', 'siente');
   }
-  ['pointerdown', 'keydown'].forEach((ev) => document.addEventListener(ev, () => { if (!dormida) { avisosSolos = 0; contarQuieta(); } }, { passive: true }));
+  ['pointerdown', 'keydown'].forEach((ev) => document.addEventListener(ev, () => { if (!dormida) { avisosSolos = 0; cerrarNube(); contarQuieta(); } }, { passive: true }));
   contarQuieta();
 
   // ---------- caricias: tocar o pasar el mouse por la cabeza, las alas o el cuerpo ----------

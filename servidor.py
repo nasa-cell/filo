@@ -515,19 +515,24 @@ def guardar_album(datos):
     return {'ok': True, 'cuantos': len(memo['album'])}
 
 
-# ---------- cuando el Maestro cierra la pagina: Filo piensa en el y se duerme ----------
+# ---------- cuando el Maestro se va o la deja sola: Filo piensa en el y se duerme ----------
 # Cada pestaña abierta avisa cada 30 s que sigue ahi. Al cerrar una, se espera 2 minutos: si ya no queda
 # ninguna abierta (ni en el PC ni en el celular), Filo piensa con la IA que va a necesitar el Maestro la
 # proxima vez y lo guarda en su memoria. Al volver, la pagina pregunta (/al-volver) y la encuentra dormida.
+# Si el aviso de cierre no llega (celular, PC apagado), un vigilante revisa cada minuto: sin señal de
+# ninguna pestaña en 2,5 min, cuenta como que se fue. Con la pagina abierta y sin tocarla, la pagina pide
+# /pensar-sola justo antes de que Filo se duerma.
 PESTANAS = {}            # id de la pestaña -> ultima vez que aviso
 VIVA = 150               # una pestaña que no avisa hace 2,5 min se da por cerrada (el navegador frena las de fondo)
 ESPERA_IDA = int(os.environ.get('FILO_ESPERA_IDA') or 120)  # si la vuelve a abrir antes de 2 min, no pasa nada (pruebas: menos)
 _ida = threading.Lock()
+ENTRE_PENSAR = 3 * 3600  # sin charla nueva, piensa como mucho una vez cada 3 horas (cuida la cuota gratis)
 PENSAR = (
-    'El Maestro cerró la página y se fue. Antes de dormirte piensas en él: con lo que hablaron hoy y lo que sabes '
+    '{situacion} Antes de dormirte piensas en él: con lo que hablaron y lo que sabes '
     'de él, piensa qué va a necesitar o qué le conviene la próxima vez (un examen o tarea que tiene, un plan, algo '
     'que quedó pendiente, algo que le gustó para repetir). puntos: 2 o 3 cosas CONCRETAS, cada una en una frase '
-    'corta de máximo 100 caracteres, hablándole de tú. dicho: lo que le dirás en voz alta cuando vuelva, máximo 200 '
+    'completa de máximo 100 caracteres, en primera persona y hablándole de tú (por ejemplo: «Preguntarte cómo te fue en '
+    'el examen.»), nunca de él en tercera persona. dicho: lo que le dirás en voz alta cuando vuelva, máximo 200 '
     'caracteres, empezando con alegría porque volvió y contándole lo que pensaste. No inventes datos que no estén '
     'en el texto; si no hay nada concreto, propón algo según sus gustos. Sin emojis ni asteriscos en dicho (se lee en '
     'voz alta). Responde SOLO JSON: {"puntos": ["..."], "dicho": "..."}'
@@ -553,6 +558,42 @@ def me_voy(datos):
     return {'ok': True}
 
 
+def vigilar_pestanas():
+    """Por si el aviso de cierre no llega: cada minuto mira si todas las pestañas dejaron de dar señal."""
+    habia = False
+    while True:
+        time.sleep(60)
+        try:
+            ultima = max(PESTANAS.values(), default=0)
+            if not PESTANAS:  # se cerraron avisando: de eso se encarga me_voy
+                habia = False
+            elif time.time() - ultima <= VIVA:
+                habia = True
+            elif habia:  # quedan pestañas pero ninguna da señal hace 2,5 min: se fue sin avisar
+                habia = False
+                revisar_ida(ultima)
+        except Exception as e:
+            print('vigilar pestañas fallo:', str(e)[:150])
+
+
+def puede_pensar(memo):
+    """Piensa si hablaron desde la ultima vez, o si ya pasaron 3 horas aunque no le haya dicho nada."""
+    cuando = (memo.get('pensado') or {}).get('cuando', 0)
+    return memo.get('ultima', 0) > cuando or time.time() - cuando >= ENTRE_PENSAR
+
+
+def cortar_completo(texto, maximo):
+    """Corta un texto largo sin dejar palabras a medias: hasta la ultima frase completa, o la ultima palabra."""
+    texto = re.sub(r'\s+', ' ', str(texto or '')).strip()
+    if len(texto) <= maximo:
+        return texto
+    trozo = texto[:maximo]
+    fin = max(trozo.rfind(c) for c in '.!?')
+    if fin > maximo * 0.5:
+        return trozo[:fin + 1]
+    return trozo.rsplit(' ', 1)[0].rstrip(',;:') + '…'
+
+
 def revisar_ida(se_fue):
     ahora = time.time()
     for pestana, cuando in list(PESTANAS.items()):
@@ -566,13 +607,29 @@ def revisar_ida(se_fue):
             return  # ya se anoto esta ida
         memo['se_fue'] = se_fue
         memoria.guardar(memoria.MAESTRO, memo)
-    pensado = memo.get('pensado') or {}
-    if memo.get('ultima', 0) > pensado.get('cuando', 0):  # solo si hablaron desde la ultima vez que penso
+    if puede_pensar(memo):
         threading.Thread(target=pensar_al_irse, daemon=True).start()
 
 
-def pensar_al_irse():
+_pensando = threading.Lock()  # nunca piensa dos veces a la vez (cierre y pagina sola al mismo tiempo)
+
+
+def pensar_al_irse(situacion='El Maestro cerró la página y se fue.'):
+    if not _pensando.acquire(blocking=False):
+        return None
+    try:
+        return _pensar(situacion)
+    finally:
+        _pensando.release()
+
+
+def _pensar(situacion):
     memo = memoria.leer(memoria.MAESTRO)
+    if not puede_pensar(memo):
+        return None
+    if memo.get('ultima', 0) <= (memo.get('pensado') or {}).get('cuando', 0):
+        situacion += (' Desde la última vez que pensaste en él no han hablado: piensa en sus gustos, en lo que '
+                      'tenía pendiente y en lo que hicieron juntos antes, sin repetir lo que ya pensaste.')
     partes = []
     if memo.get('nombre'):
         partes.append('Se llama ' + memo['nombre'] + '.')
@@ -587,21 +644,29 @@ def pensar_al_irse():
     if memo.get('gustos'):
         partes.append('Sus gustos: ' + ', '.join(list(memo['gustos'])[:12]))
     try:
-        salida = pedir_json(PENSAR, ' / '.join(partes) or 'Todavía no sabes mucho de él.', sin_groq=True, max_tokens=500)
-        puntos = [re.sub(r'\s+', ' ', str(p)).strip()[:120] for p in (salida.get('puntos') or []) if str(p).strip()][:3]
-        dicho = re.sub(r'\s+', ' ', str(salida.get('dicho') or '')).strip()[:260]
-        if len(dicho) >= 260:  # no cortar a media palabra: hasta la ultima frase completa
-            fin = max(dicho.rfind(c) for c in '.!?')
-            dicho = dicho[:fin + 1] if fin > 60 else dicho.rsplit(' ', 1)[0] + '…'
+        if (memo.get('pensado') or {}).get('puntos'):
+            partes.append('Lo que ya pensaste la vez anterior (no lo repitas): ' + '; '.join(memo['pensado']['puntos']))
+        salida = pedir_json(PENSAR.replace('{situacion}', situacion), ' / '.join(partes) or 'Todavía no sabes mucho de él.',
+                            sin_groq=True, max_tokens=500)
+        puntos = [cortar_completo(p, 120) for p in (salida.get('puntos') or []) if str(p).strip()][:3]
+        dicho = cortar_completo(salida.get('dicho'), 260)
     except Exception as e:
         print('pensar al irse fallo:', str(e)[:150])
-        return
+        return None
     if not puntos or not dicho:
-        return
+        return None
     fresca = memoria.leer(memoria.MAESTRO)
     fresca['pensado'] = {'puntos': puntos, 'dicho': dicho, 'cuando': time.time(), 'contado': False}
     memoria.guardar(memoria.MAESTRO, fresca)
     memoria.vivir(memoria.MAESTRO, 'mientras el Maestro no estaba pensé en él: ' + '; '.join(puntos))
+    return fresca['pensado']
+
+
+def pensar_sola(datos):
+    """La pagina sigue abierta pero nadie la toca: Filo piensa justo antes de dormirse."""
+    presente(datos)
+    pensado = pensar_al_irse('El Maestro dejó la página abierta y no te habla hace rato: se fue a hacer otra cosa.')
+    return {'pensado': pensado}
 
 
 def al_volver(datos):
@@ -707,6 +772,7 @@ class Manejador(SimpleHTTPRequestHandler):
             '/me-voy': me_voy,
             '/al-volver': al_volver,
             '/pensado-contado': pensado_contado,
+            '/pensar-sola': pensar_sola,
         }
         if self.path not in rutas:
             return self.enviar_json(404, {'error': 'no existe'})
@@ -795,6 +861,7 @@ if __name__ == '__main__':
     class ServidorIPv6(ThreadingHTTPServer):
         address_family = socket.AF_INET6
     # el taller: cuando nadie la usa, Filo graba frases y crea atuendos (pide a Gemini para no gastar el cupo de Groq)
+    threading.Thread(target=vigilar_pestanas, daemon=True).start()
     if not os.environ.get('FILO_SIN_TALLER'):  # para pruebas: sin taller
         taller.Taller(lambda tarea, texto: pedir_json(tarea, texto, sin_groq=True, max_tokens=1200), voz_fish,
                       lambda: ULTIMO_USO[0]).empezar()

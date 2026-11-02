@@ -289,3 +289,20 @@ body > .grande { position: fixed; inset: 0; z-index: 8; background: rgba(5, 15, 
 @keyframes burbuja-entra-nota { from { opacity: 0; transform: translateY(6px); } }
 @media (max-width: 560px) { .libreta { width: 100%; max-height: 46vh; } }
 @media (prefers-reduced-motion: reduce) { .libreta { animation: none; } }
+
+/* nube de lo que Filo piensa sola antes de dormirse: una idea a la vez, el texto entero (no achica a Filo) */
+.nube-pensar { position: absolute; left: 50%; top: 8px; transform: translateX(-50%); z-index: 4; box-sizing: border-box; width: max-content; max-width: min(460px, calc(100vw - 16px)); padding: 12px 18px 14px; border-radius: 26px; background: #fff; color: var(--azul-osc); border: 3px solid #9cc2ff; box-shadow: 0 6px 18px rgba(0, 0, 0, .3); text-align: center; line-height: 1.35; overflow-wrap: anywhere; }
+.nube-pensar::before, .nube-pensar::after { content: ""; position: absolute; background: #fff; border: 3px solid #9cc2ff; border-radius: 50%; }
+.nube-pensar::before { width: 18px; height: 18px; bottom: -24px; left: calc(50% - 30px); }
+.nube-pensar::after { width: 10px; height: 10px; bottom: -40px; left: calc(50% - 44px); }
+.nube-titulo { font-weight: 900; font-size: .9rem; color: #4b6cb7; }
+.nube-idea { margin-top: 6px; font-weight: 800; font-size: 1.02rem; animation: nube-idea .45s ease-out; }
+@keyframes nube-idea { from { opacity: 0; transform: translateY(8px); } }
+@media (max-width: 560px) {
+  .nube-pensar { padding: 10px 14px 12px; }
+  .nube-idea { font-size: .95rem; }
+  /* aviso «pensó en ti» y libretita a la vez: el aviso a todo lo ancho y la libretita debajo, sin taparse */
+  .escenario > .estado[data-tipo="siente"] { max-width: calc(100vw - 16px); width: max-content; }
+  .escenario:has(> .estado[data-tipo="siente"]:not([hidden])) > .lado[data-tipo="nota"] { top: 96px; }
+}
+@media (prefers-reduced-motion: reduce) { .nube-idea { animation: none; } }
