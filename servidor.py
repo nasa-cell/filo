@@ -20,6 +20,7 @@ import contextvars
 import random
 import threading
 import memoria
+import taller
 
 CARPETA = os.path.dirname(os.path.abspath(__file__))
 # en Render el puerto lo da la variable PORT y se escucha a internet; en el PC, solo en este equipo
@@ -427,7 +428,8 @@ def conversar(datos, mensaje):
     imagen = datos.get('imagen')
     if not imagen_valida(imagen) and not datos.get('sin_accion'):
         try:
-            plan = acciones.planear(mensaje, pedir_json, datos.get('historial') or [], bool(datos.get('modo_youtube')))
+            modo = datos.get('modo') if datos.get('modo') in ('youtube', 'busqueda') else ('youtube' if datos.get('modo_youtube') else 'normal')
+            plan = acciones.planear(mensaje, pedir_json, datos.get('historial') or [], modo)
         except Exception as e:
             plan = None
             print('planear fallo:', str(e)[:150])
@@ -443,6 +445,33 @@ def conversar(datos, mensaje):
 VOZ_EMOCION = {'emocionada': (1.12, 1), 'risa': (1.1, 1), 'feliz': (1.05, 0), 'enojada': (1.08, 2), 'celosa': (1.04, 1),
                'miedo': (1.1, -1), 'sorpresa': (1.06, 1), 'triste': (0.88, -2), 'pena': (0.9, -2), 'timida': (0.95, -3),
                'dormida': (0.82, -5), 'amor': (0.98, 0), 'asco': (1.0, 0), 'orgullosa': (0.97, 1), 'pensando': (0.95, 0)}
+
+
+def abrir_fish(texto, emocion):
+    """Pide la voz de Filo a Fish Audio (modelo gratis); devuelve la respuesta abierta (se lee por partes)."""
+    velocidad, volumen = VOZ_EMOCION.get(emocion, (1.0, 0))
+    pedido = urllib.request.Request(
+        'https://api.fish.audio/v1/tts',
+        data=json.dumps({'text': texto[:400], 'reference_id': VOZ_FILO, 'format': 'mp3', 'latency': 'balanced',
+                         'prosody': {'speed': velocidad, 'volume': volumen}}).encode(),
+        headers={'Authorization': 'Bearer ' + (clave('FISH_API_KEY') or ''), 'Content-Type': 'application/json', 'model': 's2.1-pro-free'},
+    )
+    return urllib.request.urlopen(pedido, timeout=60)
+
+
+def voz_fish(texto, emocion):
+    with abrir_fish(texto, emocion) as r:
+        return r.read()
+
+
+# el taller de Filo trabaja solo cuando el Maestro no la usa: se anota la hora de cada pedido suyo
+ULTIMO_USO = [time.time()]
+USO = ('/hablar', '/voz', '/youtube', '/buscar', '/explicar', '/dibujar', '/sentir-video', '/leer', '/ropa-cambiar')
+
+
+def anotar_uso(ruta):
+    if ruta.startswith(USO):
+        ULTIMO_USO[0] = time.time()
 
 
 # ---------- acceso: en Render solo entra quien sabe la contraseña (variable FILO_CLAVE) ----------
@@ -551,9 +580,13 @@ class Manejador(SimpleHTTPRequestHandler):
             '/borrar-dibujo': lambda d: {'borrado': acciones.borrar_dibujo(str(d.get('url', '')))},
             '/buscar': lambda d: acciones.investigar(str(d.get('consulta', '')), str(d.get('mensaje', '')), pedir_json),
             '/explicar': lambda d: acciones.explicar_enlace(str(d.get('url', ''))[:2000], str(d.get('mensaje', '')), pedir_json),
+            '/ropa-cambiar': taller.cambiar,
+            '/ropa-frase-dicha': taller.ropa_frase_dicha,
+            '/frase-dicha': taller.frase_dicha,
         }
         if self.path not in rutas:
             return self.enviar_json(404, {'error': 'no existe'})
+        anotar_uso(self.path)
         try:
             largo = int(self.headers.get('Content-Length', 0))
             datos = json.loads(self.rfile.read(largo) or b'{}')
@@ -580,6 +613,13 @@ class Manejador(SimpleHTTPRequestHandler):
         if not (ruta.path in PUBLICO or ruta.path.startswith(PUBLICO_CARPETAS) or self.con_permiso()):
             return self.enviar_json(401, {'error': 'falta la contraseña'})
         pedido_get = urllib.parse.parse_qs(ruta.query)
+        anotar_uso(ruta.path)
+        if ruta.path in ('/ropa-dia', '/frases-nuevas'):
+            try:
+                return self.enviar_json(200, taller.ropa_del_dia() if ruta.path == '/ropa-dia' else taller.frases_nuevas())
+            except Exception as e:
+                print(ruta.path, 'fallo:', str(e)[:200])
+                return self.enviar_json(502, {'error': 'no se pudo'})
         if ruta.path in ('/youtube', '/leer', '/sentir-video'):
             try:
                 if ruta.path == '/youtube':
@@ -597,15 +637,8 @@ class Manejador(SimpleHTTPRequestHandler):
             return super().do_GET()
         consulta = urllib.parse.parse_qs(urllib.parse.urlparse(self.path).query)
         texto = consulta.get('texto', [''])[0][:400]
-        velocidad, volumen = VOZ_EMOCION.get(consulta.get('emocion', [''])[0], (1.0, 0))
-        pedido = urllib.request.Request(
-            'https://api.fish.audio/v1/tts',
-            data=json.dumps({'text': texto, 'reference_id': VOZ_FILO, 'format': 'mp3', 'latency': 'balanced',
-                             'prosody': {'speed': velocidad, 'volume': volumen}}).encode(),
-            headers={'Authorization': 'Bearer ' + (clave('FISH_API_KEY') or ''), 'Content-Type': 'application/json', 'model': 's2.1-pro-free'},
-        )
         try:
-            r = urllib.request.urlopen(pedido, timeout=60)
+            r = abrir_fish(texto, consulta.get('emocion', [''])[0])
         except Exception as e:
             print('Fish Audio fallo:', str(e)[:200])
             self.send_response(502)
@@ -637,6 +670,10 @@ if __name__ == '__main__':
     # cada pedido perdia ~2,5 s antes de pasar a 127.0.0.1
     class ServidorIPv6(ThreadingHTTPServer):
         address_family = socket.AF_INET6
+    # el taller: cuando nadie la usa, Filo graba frases y crea atuendos (pide a Gemini para no gastar el cupo de Groq)
+    if not os.environ.get('FILO_SIN_TALLER'):  # para pruebas: sin taller
+        taller.Taller(lambda tarea, texto: pedir_json(tarea, texto, sin_groq=True, max_tokens=1200), voz_fish,
+                      lambda: ULTIMO_USO[0]).empezar()
     if EN_LA_NUBE:
         ThreadingHTTPServer(('0.0.0.0', PUERTO), Manejador).serve_forever()
     try:

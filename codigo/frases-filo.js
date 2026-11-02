@@ -34,6 +34,14 @@ window.FrasesFilo = {
     sigueDibujo: [['Le estoy poniendo colores…', 'contenta'], ['¡Va a quedar bonito!', 'emocionada'], ['Unos trazos más…', 'pensando'], ['Filo dibuja con mucho cariño.', 'amor']],
     buscando: [['Déjame buscarlo en internet.', 'pensando'], ['Voy a leer unas páginas, espérame.', 'pensando'], ['Mmm, lo averiguo ahora mismo.', 'orgullosa']],
   },
+  // modos: al encenderlos con el boton o la voz, y cuando se encienden solos (pide un video o una busqueda)
+  modos: {
+    youtube: [['¡Modo YouTuber activado, Maestro! Dime qué canción o video quieres.', 'emocionada'], ['¡Me puse mi ropa de YouTuber! ¿Qué ponemos?', 'feliz'], ['¡Modo YouTube! Pídeme la música que quieras.', 'emocionada']],
+    busqueda: [['¡Modo investigadora activado! Pregúntame lo que quieras y lo busco.', 'orgullosa'], ['¡Ya tengo mi ropa de investigadora! ¿Qué averiguamos?', 'emocionada'], ['¡Modo búsqueda! Todo lo que preguntes lo busco en internet.', 'feliz']],
+    normal: [['¡Listo! Volví a mi ropa de hoy. Conversamos normal, Maestro.', 'feliz'], ['¡Modo normal! Ahora solo conversamos.', 'contenta']],
+    autoYoutube: [['¡Me pongo en modo YouTuber!', 'emocionada'], ['¡Espera, me pongo mi ropa de YouTuber!', 'feliz'], ['¡Modo YouTuber, ya!', 'emocionada']],
+    autoBusqueda: [['¡Modo investigadora!', 'orgullosa'], ['¡Me pongo mi ropa de investigadora!', 'emocionada'], ['¡A investigar!', 'feliz']],
+  },
   // caricias: tocar la cabeza, las alas o el cuerpo
   caricias: {
     cabeza: [['¡Jeje, cosquillas!', 'timida'], ['Mmm… Filo se porta bien, ¿verdad?', 'contenta'], ['¡Más, más! Me gusta que me acaricies, Maestro.', 'amor']],
@@ -51,6 +59,7 @@ window.FrasesFilo = {
     videoBloqueado: [['Esos videos no se dejan ver aquí, Maestro. ¿Busco otro?', 'triste'], ['¡Qué mal, esos videos no me dejan ponerlos aquí! ¿Busco otros?', 'enojada']],
     otraVersion: [['¡Ya está, mira! Aquí tienes otra versión.', 'feliz'], ['¡Otra más! ¿Te gusta más esta?', 'emocionada'], ['Esta me salió todavía mejor, ¿verdad, Maestro?', 'orgullosa']],
     noDibujo: [['Uy, no pude dibujar ahora. ¿Lo intentas otra vez?', 'triste'], ['¡Mis lápices no funcionan! Pídemelo otra vez en un ratito.', 'sorpresa']],
+    sinEsaRopa: [['Mmm, esa ropa no la tengo, Maestro. ¿Me pongo otra?', 'pensando'], ['¡Uy! No tengo esa ropa todavía. Dime «cámbiate» y me pongo otra.', 'timida']],
     alAlbum: [['Maestro, voy a guardar el dibujo en el álbum. Ahí lo vas a encontrar.', 'feliz'], ['Guardo el dibujo en el álbum, ¿sí? Ahí lo encuentras cuando quieras.', 'guino'], ['¡Al álbum va! Así no se pierde, Maestro.', 'orgullosa']],
   },
 };

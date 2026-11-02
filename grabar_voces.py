@@ -25,7 +25,12 @@ def leer_frases():
     salida = subprocess.run(['node', '-e', codigo, os.path.join(CARPETA, 'codigo', 'frases-filo.js')],
                             capture_output=True, check=True)
     vistas, frases = set(), []
-    for texto, emocion in json.loads(salida.stdout.decode('utf-8')):
+    lista = json.loads(salida.stdout.decode('utf-8'))
+    # tambien la frase de estreno de cada atuendo de atuendos.json (ropa del dia y de los modos)
+    with open(os.path.join(CARPETA, 'atuendos.json'), encoding='utf-8') as f:
+        recetas = json.load(f)
+    lista += [[r['frase'], r.get('emocion', 'feliz')] for r in recetas['atuendos'] + recetas['modos']]
+    for texto, emocion in lista:
         if (texto, emocion) not in vistas:
             vistas.add((texto, emocion))
             frases.append((texto, emocion))

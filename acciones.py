@@ -47,18 +47,56 @@ PLAN = (
 )
 
 
-def planear(mensaje, pedir_json, historial=(), modo_youtube=False):
+MODOS = {
+    'youtube': ("ESTÁS EN MODO YOUTUBE: si pide música, una canción, un artista, un anime o algo para ver o escuchar "
+                "(aunque no diga 'video' ni 'pon'), accion 'video'. Pero si PREGUNTA información (qué es, cómo, por qué, "
+                "cuándo, quién fue, noticias, datos, precios), accion 'buscar'. Si pide un dibujo, 'dibujo'. Si solo "
+                "conversa contigo (saludo, cómo estás, cariño, juegos, contarte algo), 'ninguna'. "),
+    'busqueda': ("ESTÁS EN MODO BÚSQUEDA: si pregunta algo o pide información, datos o noticias, accion 'buscar' aunque "
+                 "creas saberlo. Si pide música o un video, 'video'. Si pide un dibujo, 'dibujo'. Si solo conversa "
+                 "contigo (saludo, cómo estás, cariño, juegos, contarte algo), 'ninguna'. "),
+}
+
+
+PREGUNTA = re.compile(r'[¿?]|^\s*(qu[eé]|c[oó]mo|por ?qu[eé]|cu[aá]ndo|cu[aá]nt[oa]s?|qui[eé]n(es)?|d[oó]nde|cu[aá]l(es)?)\b|'
+                      r'\b(qu[eé] es|significa|noticias?|precio|datos? de|informaci[oó]n)\b', re.I)
+MUSICA = re.compile(r'\b(pon(me|nos)?|m[uú]sica|canci[oó]n|video|opening|ending|escuchar|ver el|reproduce|playlist)\b', re.I)
+
+
+# charla con ella (no se busca): «¿cómo estás?», «¿qué haces?», «¿me quieres?»...
+CHARLA = re.compile(r'\b(c[oó]mo est[aá]s|qu[eé] (haces|tal|cuentas|te gusta|piensas|sientes)|me quieres|est[aá]s bien|'
+                    r'te acuerdas|qui[eé]n eres|c[oó]mo te (llamas|sientes|fue)|filo)\b', re.I)
+
+
+def _buscar_tal_cual(mensaje):
+    m = re.sub(r'^\s*(filo,?\s*)?(busca(me)?|investiga|averigua)\s+', '', mensaje.strip(), flags=re.I).strip() or mensaje.strip()
+    return {'accion': 'buscar', 'consulta': m[:200], 'titulo': m.strip('¿?¡! ')[:40], 'respuesta': '',
+            'emocion': 'pensando', 'adivinanza': 'false'}
+
+
+def planear(mensaje, pedir_json, historial=(), modo='normal'):
     """Devuelve el plan si el mensaje pide dibujar, un video o buscar; si no, None.
-    En modo YouTube todo lo que pide el Maestro se busca en YouTube."""
-    if modo_youtube:
-        return planear_video(mensaje, pedir_json, historial)
-    if not PISTAS.search(mensaje):
+    En modo YouTube o búsqueda la IA decide siempre (sin pistas), con preferencia por ese modo."""
+    if modo not in MODOS and not PISTAS.search(mensaje):
         return None
     antes = '\n'.join(('Maestro: ' if h.get('rol') == 'usuario' else 'Filo: ') + str(h.get('texto', ''))[:200]
                       for h in list(historial)[-8:] if isinstance(h, dict))
-    plan = pedir_json(PLAN, ('Conversación reciente:\n' + antes + '\n\n' if antes else '')
-                      + 'El Maestro dice ahora: «' + mensaje[:400] + '»')
+    try:
+        plan = pedir_json(MODOS.get(modo, '') + PLAN, ('Conversación reciente:\n' + antes + '\n\n' if antes else '')
+                          + 'El Maestro dice ahora: «' + mensaje[:400] + '»')
+    except Exception as e:
+        # sin IA: una pregunta de informacion va a busqueda y un pedido de musica a video, en cualquier modo
+        if modo == 'youtube' and not PREGUNTA.search(mensaje):
+            return planear_video(mensaje, pedir_json, historial)
+        if modo == 'busqueda' and MUSICA.search(mensaje):
+            return planear_video(mensaje, pedir_json, historial)
+        if modo in MODOS:
+            return _buscar_tal_cual(mensaje)
+        raise e
     if plan.get('accion') not in ('dibujo', 'video', 'buscar') or not str(plan.get('consulta', '')).strip():
+        # en modo YouTube o búsqueda, una pregunta de información siempre se busca (aunque la IA crea saberla)
+        if modo in MODOS and PREGUNTA.search(mensaje) and not CHARLA.search(mensaje):
+            return _buscar_tal_cual(mensaje)
         return None
     return {k: str(plan.get(k, '')).strip() for k in ('accion', 'consulta', 'titulo', 'respuesta', 'emocion', 'adivinanza')}
 
@@ -137,7 +175,7 @@ def _firmar(parametros, secreto):
     return hashlib.sha1((texto + secreto).encode()).hexdigest()
 
 
-def _pedir_nube(accion, parametros, archivo=None):
+def _pedir_nube(accion, parametros, archivo=None, tipo='image', mime='image/jpeg', nombre_archivo='dibujo.jpg'):
     nube, llave, secreto = credenciales_nube()
     parametros = dict(parametros, timestamp=str(int(time.time())))
     campos = dict(parametros, api_key=llave, signature=_firmar(parametros, secreto))
@@ -146,13 +184,22 @@ def _pedir_nube(accion, parametros, archivo=None):
     for k, v in campos.items():
         cuerpo += f'--{limite}\r\nContent-Disposition: form-data; name="{k}"\r\n\r\n{v}\r\n'.encode()
     if archivo:
-        cuerpo += (f'--{limite}\r\nContent-Disposition: form-data; name="file"; filename="dibujo.jpg"\r\n'
-                   'Content-Type: image/jpeg\r\n\r\n').encode() + archivo + b'\r\n'
+        cuerpo += (f'--{limite}\r\nContent-Disposition: form-data; name="file"; filename="{nombre_archivo}"\r\n'
+                   f'Content-Type: {mime}\r\n\r\n').encode() + archivo + b'\r\n'
     cuerpo += f'--{limite}--\r\n'.encode()
-    pedido = urllib.request.Request(f'https://api.cloudinary.com/v1_1/{nube}/image/{accion}', data=cuerpo,
+    pedido = urllib.request.Request(f'https://api.cloudinary.com/v1_1/{nube}/{tipo}/{accion}', data=cuerpo,
                                     headers={'Content-Type': f'multipart/form-data; boundary={limite}'})
     with urllib.request.urlopen(pedido, timeout=40) as r:
         return json.load(r)
+
+
+def subir_archivo(datos, carpeta, nombre, tipo='image', mime='image/webp', nombre_archivo='archivo.webp'):
+    """Sube un archivo cualquiera (ropa de Filo en webp; voces en mp3 con tipo 'video') y devuelve su direccion.
+    Lanza error si no hay nube o falla: quien llama lo intenta mas tarde."""
+    if not credenciales_nube():
+        raise RuntimeError('sin Cloudinary')
+    res = _pedir_nube('upload', {'folder': carpeta, 'public_id': nombre}, datos, tipo, mime, nombre_archivo)
+    return res['secure_url']
 
 
 def subir_a_nube(imagen, nombre):

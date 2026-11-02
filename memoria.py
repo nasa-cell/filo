@@ -35,6 +35,8 @@ def _variable(nombre):
 
 
 def _conexion():
+    if os.environ.get('FILO_MEMORIA_LOCAL'):  # pruebas: memoria en la carpeta datos_memoria, sin tocar la de verdad
+        return None
     url = _variable('FILO_DATABASE_URL')
     if not url:
         return None
@@ -448,4 +450,5 @@ def crecer(id_maestro, pedir_json):
         memoria['forma_maestro'] = forma[:500]
     if len(soy) > 30:
         memoria['como_soy'] = soy[:700]
+    memoria['crecio'] = True  # el taller escribe frases nuevas con su forma de ser de ahora
     guardar(id_maestro, memoria)

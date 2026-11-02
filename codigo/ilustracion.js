@@ -383,6 +383,11 @@
   camino(lentes, 'M 500 430 Q 520 412 541 430', { fill: 'none', stroke: '#e83f7a', 'stroke-width': 10.2 });
   camino(lentes, 'M 268 430 L 228 410 M 773 430 L 812 410', { fill: 'none', stroke: '#e83f7a', 'stroke-width': 9.0, 'stroke-linecap': 'round' });
 
+  // ropa del dia (codigo/ropa.js): el vestido pintado encima del cuerpo, su copia en la cabeza (zona del cuello)
+  // y el adorno sobre el pelo, todos debajo de la ropa de ocasion
+  const dia = { cuerpo: grupo(cuerpo, { class: 'ropa-dia' }), cuello: el('g', { class: 'ropa-dia' }), adorno: el('g', { class: 'ropa-dia' }) };
+  cabeza.insertBefore(dia.cuello, cara);
+  cabeza.insertBefore(dia.adorno, cara);
   // ropa segun la ocasion (codigo/ropa.js): cuerpo debajo de la cabeza, cabeza encima del pelo, extra alrededor
   const ropa = { cuerpo: grupo(cuerpo, { class: 'ropa' }), cabeza: grupo(cabeza, { class: 'ropa' }), extra: grupo(todo, { class: 'ropa' }) };
 
@@ -398,6 +403,13 @@
     toque(zona) { estado.toque = { zona, desde: performance.now() / 1000 }; },
     nivel(n) { estado.nivel = n; },
     lentes(si) { lentes.style.opacity = si ? 1 : 0; },
-    ropa(nombre) { if (window.FiloRopa) window.FiloRopa.vestir(ropa, nombre, { conCapas: true }); },
+    ropa(nombre) {
+      if (!window.FiloRopa) return;
+      window.FiloRopa.vestir(ropa, nombre, { conCapas: true });
+      const tapa = window.FiloRopa.tapa(nombre);
+      mostrar(dia.adorno, !tapa.cabeza);
+      mostrar(dia.cuello, !tapa.cuerpo);
+    },
+    ropaDia(receta) { if (window.FiloRopa) window.FiloRopa.vestirDia(dia, receta); },
   };
 })();

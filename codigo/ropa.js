@@ -135,6 +135,34 @@
     }
   };
 
+  // ---------- ropa del dia (atuendos.json o los que crea Filo; los pinta el servidor) ----------
+  // receta.capas = { cuerpo: { url, caja: [x, y, ancho, alto] }, cabeza: {...} }; receta.dibujo = colores para la vista Dibujo.
+  // grupos: { cuerpo, cuello, adorno } (ilustracion) o { adorno } (dibujo). El vestido va en «cuerpo» y una copia en
+  // «cuello» (la parte que la cabeza tapa al moverse); el adorno del pelo en «adorno».
+  const imagenCapa = (c, extra = '') => (c ? `<image href="${c.url}" x="${c.caja[0]}" y="${c.caja[1]}" width="${c.caja[2]}" height="${c.caja[3]}"${extra}/>` : '');
+  window.FiloRopa.vestirDia = function (grupos, receta, { ajuste = '', raiz = null } = {}) {
+    const capas = (receta && receta.capas) || {};
+    if (grupos.cuerpo) grupos.cuerpo.innerHTML = imagenCapa(capas.cuerpo, ' mask="url(#m-cuerpo)"');
+    if (grupos.cuello) grupos.cuello.innerHTML = imagenCapa(capas.cuerpo, ' mask="url(#m-cabeza)"');
+    if (grupos.adorno) {
+      const img = imagenCapa(capas.cabeza);
+      grupos.adorno.innerHTML = img && ajuste ? `<g transform="${ajuste}">${img}</g>` : img;
+    }
+    if (raiz) {  // vista Dibujo: su vestido toma los colores del atuendo
+      const d = receta && receta.dibujo;
+      if (d) {
+        raiz.style.setProperty('--vestido', d.vestido);
+        raiz.style.setProperty('--vestido-osc', d.vestido_osc);
+        raiz.style.setProperty('--cinta', d.cinta);
+      } else ['--vestido', '--vestido-osc', '--cinta'].forEach((v) => raiz.style.removeProperty(v));
+    }
+  };
+  // con un gorro de ocasion (pintora, chef, bruja...) el adorno del dia se esconde; con ropa de cuerpo, el cuello tambien
+  window.FiloRopa.tapa = function (nombre) {
+    const p = nombre ? window.FiloRopa[nombre] : null;
+    return { cabeza: !!(p && p.cabeza), cuerpo: !!(p && (p.cuerpo || CAPAS[`${nombre}-cuerpo`])) };
+  };
+
   // se cargan antes para que la ropa aparezca al instante
   for (const n of Object.keys(CAPAS)) { const i = new Image(); i.src = `imagenes/ropa/${n}.webp`; }
 })();

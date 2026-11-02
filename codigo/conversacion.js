@@ -126,9 +126,12 @@
   const esperar = (ms) => new Promise((r) => setTimeout(r, ms));
   let grabadas = {};
   fetch('voces/indice.json').then((r) => (r.ok ? r.json() : {})).then((d) => { grabadas = d || {}; }).catch(() => {});
+  // voces grabadas por el taller de Filo (frases nuevas y frases de sus atuendos nuevos): estan en Cloudinary
+  const grabadasNube = {};
   const vozGrabada = (texto, emocion) => {
     const archivo = grabadas[texto + '|' + emocion];
-    return archivo ? fetch('voces/' + archivo).then((r) => { if (!r.ok) throw new Error('sin archivo'); return r.blob(); }) : null;
+    const url = archivo ? 'voces/' + archivo : grabadasNube[texto + '|' + emocion];
+    return url ? fetch(url).then((r) => { if (!r.ok) throw new Error('sin archivo'); return r.blob(); }) : null;
   };
   // si falla (corte breve de internet o del servidor) lo intenta dos veces mas
   const bajarVoz = (frase, emocion) => pedirVoz(frase, emocion)
@@ -187,7 +190,27 @@
   const FF = window.FrasesFilo;
   // saca frases de una bolsa: no repite ninguna hasta haberlas dicho todas
   const bolsas = new Map();
+  // frases nuevas que Filo escribio y grabo sola (taller del servidor): se dicen PRIMERO, antes que las de siempre
+  const TIPO_DE = new Map([[FF.sola, 'sola'], [FF.saludo, 'saludo'], [FF.esperando.pensando, 'pensando'], [FF.esperando.sigue, 'sigue'], [FF.despertar, 'despertar']]);
+  let nuevas = [];
+  const dichasAqui = new Set();
+  function cargarNuevas() {
+    fetch('/frases-nuevas').then((r) => (r.ok ? r.json() : null)).then((d) => {
+      if (!d) return;
+      nuevas = d.frases || [];
+      nuevas.forEach((f) => { grabadasNube[f.texto + '|' + f.emocion] = f.url; });
+    }).catch(() => {});
+  }
+  cargarNuevas();
+  setInterval(cargarNuevas, 10 * 60000);
   function sacar(lista) {
+    const tipo = TIPO_DE.get(lista);
+    const nueva = tipo && nuevas.find((f) => f.tipo === tipo && !f.dicha && !dichasAqui.has(f.id));
+    if (nueva) {
+      dichasAqui.add(nueva.id);
+      fetch('/frase-dicha', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ id: nueva.id }) }).catch(() => {});
+      return [nueva.texto, nueva.emocion];
+    }
     let b = bolsas.get(lista);
     if (!b || !b.length) {
       b = lista.map((_, n) => n).sort(() => Math.random() - 0.5);
@@ -200,6 +223,7 @@
   let detalleUltimo = '';  // explicacion larga de la ultima busqueda o enlace («cuéntame más»)
   let quieta = null, avisosSolos = 0, dormida = false;
   const ocupada = () => boton.disabled || !audio.paused || (A() && A().estaSonando && A().estaSonando());
+  window.FiloOcupada = ocupada;  // para las pruebas automaticas
   function contarQuieta() {
     clearTimeout(quieta);
     quieta = setTimeout(hablarSola, avisosSolos < 2 ? 90000 : 60000);
@@ -221,17 +245,85 @@
 
   // ---------- modo YouTube: todo lo que pide el Maestro se busca en YouTube ----------
   // «Filo, ponte modo YouTube» lo enciende y «sal del modo YouTube» lo apaga (tambien el boton de arriba)
-  let modoYoutube = false;
-  try { modoYoutube = localStorage.getItem('filo_modo_youtube') === '1'; } catch (e) { /* nada */ }
-  function ponerModoYoutube(si, conVoz) {
-    modoYoutube = si;
-    try { localStorage.setItem('filo_modo_youtube', si ? '1' : '0'); } catch (e) { /* nada */ }
-    const b = $('b-youtube');
-    if (b) b.setAttribute('aria-pressed', si);
-    document.body.classList.toggle('modo-youtube', si);
-    $('mensaje').placeholder = si ? '▶ Modo YouTube: dime qué canción o video pongo…' : 'Escríbele algo a Filo…';
-    if (conVoz) decir(si ? '¡Modo YouTube activado, Maestro! Dime qué canción o video quieres y lo busco.'
-      : '¡Listo! Salí del modo YouTube. Ahora conversamos normal.', si ? 'emocionada' : 'feliz');
+  // modo búsqueda: todo lo que pregunta el Maestro se busca en internet. Solo un modo a la vez.
+  // Se encienden solos si pide un video o una búsqueda, y se apagan solos tras 5 min sin usarlos.
+  let modo = 'normal';
+  try {
+    modo = localStorage.getItem('filo_modo') || (localStorage.getItem('filo_modo_youtube') === '1' ? 'youtube' : 'normal');
+  } catch (e) { /* nada */ }
+  if (!['normal', 'youtube', 'busqueda'].includes(modo)) modo = 'normal';
+  let usoModo = Date.now();
+  const AVISO_MODO = { youtube: '▶ Modo YouTube: dime qué canción o video pongo…', busqueda: '🔍 Modo búsqueda: pregúntame lo que quieras y lo busco…', normal: 'Escríbele algo a Filo…' };
+  function ponerModo(nuevo, conVoz) {
+    modo = nuevo;
+    usoModo = Date.now();
+    try { localStorage.setItem('filo_modo', nuevo); } catch (e) { /* nada */ }
+    $('b-youtube').setAttribute('aria-pressed', nuevo === 'youtube');
+    $('b-busqueda').setAttribute('aria-pressed', nuevo === 'busqueda');
+    document.body.classList.toggle('modo-youtube', nuevo === 'youtube');
+    document.body.classList.toggle('modo-busqueda', nuevo === 'busqueda');
+    $('mensaje').placeholder = AVISO_MODO[nuevo];
+    vestirse();
+    if (conVoz) return decir(...sacar(FF.modos[nuevo]));
+    return Promise.resolve();
+  }
+  const ponerModoYoutube = (si, conVoz) => ponerModo(si ? 'youtube' : 'normal', conVoz);
+  // se apaga solo si lleva 5 min sin pedir videos ni busquedas (y no hay un video sonando)
+  setInterval(() => {
+    if (modo === 'normal') return;
+    if (A() && A().estaSonando && A().estaSonando()) { usoModo = Date.now(); return; }
+    if (Date.now() - usoModo > 5 * 60000) ponerModo('normal', false);
+  }, 30000);
+
+  // ---------- ropa del dia: un atuendo distinto cada dia (lo elige el servidor; atuendos.json o los que crea Filo) ----------
+  let ropaDia = null, modosRopa = {}, estrenoPendiente = false;
+  function vestirse() {
+    const receta = modo === 'youtube' ? modosRopa.youtuber : modo === 'busqueda' ? modosRopa.buscadora : ropaDia;
+    if (receta) filos().forEach((f) => f.ropaDia && f.ropaDia(receta));
+  }
+  function anotarVoz(r) { if (r && r.voz) grabadasNube[r.frase + '|' + r.emocion] = r.voz; }
+  function cargarRopa() {
+    fetch('/ropa-dia').then((r) => (r.ok ? r.json() : null)).then((d) => {
+      if (!d || !d.id) return;
+      const cambio = !ropaDia || ropaDia.id !== d.id;
+      ropaDia = d;
+      modosRopa = d.modos || {};
+      anotarVoz(d);
+      Object.values(modosRopa).forEach(anotarVoz);
+      if (cambio) estrenoPendiente = !!d.estreno;
+      // las capas se cargan antes de ponerlas: asi no se ve a Filo a medio vestir
+      const urls = [d, ...Object.values(modosRopa)].flatMap((r) => Object.values((r && r.capas) || {}).map((c) => c.url));
+      Promise.all(urls.map((u) => new Promise((ok) => { const i = new Image(); i.onload = i.onerror = ok; i.src = u; }))).then(vestirse);
+    }).catch(() => {});
+  }
+  cargarRopa();
+  setInterval(cargarRopa, 20 * 60000);  // a medianoche cambia sola
+  // la primera vez que hablan ese dia, Filo comenta su ropa nueva (solo si esta libre)
+  function decirEstreno() {
+    if (!estrenoPendiente || !ropaDia || modo !== 'normal' || !audio.paused || boton.disabled) return;
+    estrenoPendiente = false;
+    fetch('/ropa-frase-dicha', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: '{}' }).catch(() => {});
+    setTimeout(() => { if (audio.paused && !boton.disabled) decir(ropaDia.frase, ropaDia.emocion || 'feliz'); }, 600);
+  }
+  async function cambiarRopa(pedido, original) {
+    callar();
+    expresion('pensando', 4000);
+    try {
+      const d = await postJson('/ropa-cambiar', { pedido });
+      if (d.no_encontre) {
+        if (original) { saltarOrden = true; return preguntar(original, true); }  // no era ropa suya: lo piensa la IA
+        return decir(...sacar(FF.avisos.sinEsaRopa));
+      }
+      ropaDia = Object.assign({}, ropaDia, d);
+      anotarVoz(d);
+      estrenoPendiente = false;
+      if (modo !== 'normal') ponerModo('normal', false);
+      ocasion.pedidaHasta = 0;
+      vestirse();
+      return decir(d.frase, d.emocion || 'feliz');
+    } catch (e) {
+      return decir(...sacar(FF.avisos.sinEsaRopa));
+    }
   }
 
   // ---------- ropa segun la ocasion (codigo/ropa.js) ----------
@@ -250,9 +342,9 @@
     const ahora = Date.now();
     if (dormida) return 'pijama';
     if (ocasion.dibujando) return 'pintora';
-    if (ocasion.buscando) return 'detective';
+    if (ocasion.buscando && modo !== 'busqueda') return 'detective';  // en modo búsqueda ya lleva su ropa de investigadora
     if (ocasion.pedidaHasta > ahora) return ocasion.pedida;  // la que le pidio el Maestro
-    if (modoYoutube) return 'audifonos';
+    if (modo === 'youtube') return 'audifonos';
     if (A() && A().estaSonando && A().estaSonando()) return 'audifonos';
     if (ocasion.chefHasta > ahora) return 'chef';
     if (ocasion.pollitoHasta > ahora) return 'pollito';
@@ -340,7 +432,7 @@
 
   // saludo (la cara la elige Gemini con cada respuesta)
   // saludo: presentacion ya grabada, suena al instante (no espera a la IA)
-  $('b-hablar').onclick = () => { despertar(); prepararAudio(); decir(...sacar(FF.saludo)); };
+  $('b-hablar').onclick = () => { despertar(); prepararAudio(); decir(...sacar(FF.saludo)).then(decirEstreno); };
 
   // conversacion
   const historial = [];
@@ -407,7 +499,18 @@
       ponerModoYoutube(!apagar, true);
       return true;
     }
-    if (modoYoutube && /\bmodo normal\b|^(ya )?no m[aá]s (m[uú]sica|videos?)$/.test(t)) { ponerModoYoutube(false, true); return true; }
+    // modo búsqueda: «Filo, modo búsqueda», «modo investigadora», «modo google» (y «sal del modo búsqueda»)
+    if (/\bmodo\s+(b[uú]squeda|busca\w*|investiga\w*|google|detective)\b/.test(t)) {
+      const apagar = /\b(sal|s[aá]l(te|ir)?|quita(lo)?|apaga(lo)?|desactiva(lo)?|termina|cierra|deja|sin|no)\b/.test(t);
+      ponerModo(apagar ? 'normal' : 'busqueda', true);
+      return true;
+    }
+    if (modo !== 'normal' && /\bmodo normal\b|^(ya )?no m[aá]s (m[uú]sica|videos?|b[uú]squedas?)$/.test(t)) { ponerModo('normal', true); return true; }
+    // ropa del dia: «cámbiate», «ponte otra ropa», «otro atuendo»
+    if (/^(filo,?\s*)?(c[aá]mbiate( de ropa)?|cambia(te)? de ropa|ponte otra ropa|otra ropa|otro atuendo|ponte otro atuendo|quiero verte con otra ropa)(,? filo)?$/.test(t)) {
+      cambiarRopa(t);
+      return true;
+    }
     // «cuéntame más»: explica con detalle lo ultimo que busco o la pagina que leyo (sin volver a preguntar a la IA)
     if (detalleUltimo && /^(filo,?\s*)?((cu[eé]ntame|dime|expl[ií]ca(me)?|sigue) (m[aá]s|un poco m[aá]s)|m[aá]s detalles?|dame m[aá]s detalles?|y qu[eé] m[aá]s)(,? filo)?$/.test(t)) {
       contarMas(detalleUltimo);
@@ -437,6 +540,11 @@
         ocasion.pedida = ropa[0];
         ocasion.pedidaHasta = Date.now() + 10 * 60000;  // la lleva 10 minutos
         decir(ropa[2], 'feliz');
+        return true;
+      }
+      // «ponte el kimono», «vístete de princesa»: uno de sus atuendos del dia (si no lo tiene, lo dice)
+      if (/^(filo,?\s*)?(ponte|p[oó]nte|v[ií]stete( de)?|usa|ll[eé]va) (el |la |tu |de |un |una )?[\wáéíóúñ ]{3,30}$/.test(t)) {
+        cambiarRopa(t, m);
         return true;
       }
     }
@@ -596,8 +704,9 @@
   }
   window.FiloAcciones.alPedirOtraVersion(dibujarOtraVez);
   // 15 s antes de quitar el dibujo de la pantalla, Filo avisa (con voz si no esta hablando)
-  $('b-youtube').addEventListener('click', () => ponerModoYoutube(!modoYoutube, true));
-  ponerModoYoutube(modoYoutube, false);
+  $('b-youtube').addEventListener('click', () => ponerModo(modo === 'youtube' ? 'normal' : 'youtube', true));
+  $('b-busqueda').addEventListener('click', () => ponerModo(modo === 'busqueda' ? 'normal' : 'busqueda', true));
+  ponerModo(modo, false);
   window.FiloAcciones.alAvisarQuitar(() => {
     const libre = audio.paused && !boton.disabled;
     if (libre) decirFrase('alAlbum');
@@ -637,9 +746,12 @@
   });
 
   // pregunta a la IA y Filo dice la respuesta (o hace lo que le piden)
+  let saltarOrden = false;
   async function preguntar(mensaje, guardar, sinAccion = false) {
     despertar();
-    if (guardar && ordenRapida(mensaje)) return;
+    const conOrden = !saltarOrden;
+    saltarOrden = false;
+    if (guardar && conOrden && ordenRapida(mensaje)) return;
     if (boton.disabled) return;
     boton.disabled = true;
     callar();
@@ -654,7 +766,7 @@
       aviso(imagen ? 'Mirando y pensando…' : 'Pensando…', 'piensa');
       // mientras la IA piensa, Filo dice algo con su voz grabada (solo cuando el Maestro le habla)
       if (guardar) seguirHablando(FF.esperando[imagen ? 'mirando' : 'pensando'], FF.esperando.sigue);
-      const d = await postJson('/hablar', { mensaje, historial: historial.slice(-16), imagen, lugar, sin_accion: sinAccion, modo_youtube: modoYoutube && guardar, id: idMaestro, hora: horaMaestro(), minutos: Math.round((Date.now() - abierta) / 60000) });
+      const d = await postJson('/hablar', { mensaje, historial: historial.slice(-16), imagen, lugar, sin_accion: sinAccion, modo: guardar ? modo : 'normal', id: idMaestro, hora: horaMaestro(), minutos: Math.round((Date.now() - abierta) / 60000) });
       if (d.animo) ponerReposo(REPOSO[d.animo] || 'normal', 10000);
       if (d.cumple) ocasion.cumple = true;
       fijarseComida(mensaje, d.respuesta);
@@ -663,10 +775,17 @@
       if (guardar) historial.push({ rol: 'usuario', texto: mensaje + (imagen ? ' [le mostré una imagen]' : '') }, { rol: 'filo', texto: secreto + (d.respuesta || '(' + (d.accion ? d.accion.titulo : '') + ')') });
       if (d.accion) {
         boton.disabled = false;
+        const quiere = d.accion.tipo === 'video' ? 'youtube' : d.accion.tipo === 'buscar' ? 'busqueda' : null;
+        if (quiere && guardar && modo !== quiere) {
+          await terminaRelleno();
+          await ponerModo(quiere, false);
+          await decir(...sacar(FF.modos[quiere === 'youtube' ? 'autoYoutube' : 'autoBusqueda']));
+        }
+        if (quiere) usoModo = Date.now();
         await hacer(d, mensaje);
       } else {
         await terminaRelleno();
-        decir(d.respuesta, d.emocion);
+        decir(d.respuesta, d.emocion).then(() => { if (guardar) decirEstreno(); });
       }
     } catch (err) {
       esperandoAhora++;  // ya no sigue con frases de espera

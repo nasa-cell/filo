@@ -1,0 +1,2340 @@
+{
+ "atuendos": [
+  {
+   "id": "kimono",
+   "nombre": "kimono",
+   "base": "#eb78a0",
+   "tela": {
+    "tipo": "flores",
+    "color": "#ffffff",
+    "color2": "#ffc850"
+   },
+   "extras": [
+    {
+     "tipo": "franja",
+     "color": "#c81e3c",
+     "y": 905,
+     "alto": 40
+    }
+   ],
+   "mono": "#c81e3c",
+   "adorno": {
+    "tipo": "sakura",
+    "color": "#ffaac8",
+    "color2": "#ffdc5a"
+   },
+   "frase": "¿Te gusta mi kimono, Maestro? ¡Tiene flores de cerezo!",
+   "emocion": "feliz",
+   "etiquetas": [
+    "japon",
+    "anime",
+    "primavera"
+   ],
+   "capas": {
+    "cuerpo": {
+     "url": "imagenes/ropa/dia/kimono-cuerpo.webp",
+     "caja": [
+      267,
+      677,
+      503,
+      347
+     ]
+    },
+    "cabeza": {
+     "url": "imagenes/ropa/dia/kimono-cabeza.webp",
+     "caja": [
+      627,
+      205,
+      150,
+      206
+     ]
+    }
+   }
+  },
+  {
+   "id": "escolar",
+   "nombre": "uniforme escolar",
+   "base": "#2d418c",
+   "extras": [
+    {
+     "tipo": "rayas_cuello",
+     "color": "#ffffff"
+    }
+   ],
+   "mono": "#dc2832",
+   "adorno": {
+    "tipo": "pinzas",
+    "color": "#dc2832"
+   },
+   "frase": "¡Hoy voy al colegio como tú, Maestro!",
+   "emocion": "emocionada",
+   "etiquetas": [
+    "colegio",
+    "anime",
+    "estudio"
+   ],
+   "capas": {
+    "cuerpo": {
+     "url": "imagenes/ropa/dia/escolar-cuerpo.webp",
+     "caja": [
+      267,
+      677,
+      503,
+      347
+     ]
+    },
+    "cabeza": {
+     "url": "imagenes/ropa/dia/escolar-cabeza.webp",
+     "caja": [
+      648,
+      239,
+      101,
+      62
+     ]
+    }
+   }
+  },
+  {
+   "id": "abrigo",
+   "nombre": "abrigo rojo",
+   "base": "#cd2d37",
+   "extras": [
+    {
+     "tipo": "cierre",
+     "color": "#78141e"
+    },
+    {
+     "tipo": "botones",
+     "color": "#f0c85a",
+     "x": 540
+    },
+    {
+     "tipo": "franja",
+     "color": "#ffffff",
+     "y": 1000,
+     "alto": 24
+    }
+   ],
+   "mono": "#ffffff",
+   "adorno": {
+    "tipo": "orejeras",
+    "color": "#cd2d37",
+    "color2": "#ffffff"
+   },
+   "frase": "¡Hace frío! Me puse mi abrigo con orejeras.",
+   "emocion": "feliz",
+   "etiquetas": [
+    "invierno",
+    "frio"
+   ],
+   "capas": {
+    "cuerpo": {
+     "url": "imagenes/ropa/dia/abrigo-cuerpo.webp",
+     "caja": [
+      267,
+      677,
+      503,
+      347
+     ]
+    },
+    "cabeza": {
+     "url": "imagenes/ropa/dia/abrigo-cabeza.webp",
+     "caja": [
+      176,
+      104,
+      681,
+      437
+     ]
+    }
+   }
+  },
+  {
+   "id": "chompa",
+   "nombre": "chompa de alpaca",
+   "base": "#f0dcb4",
+   "tela": {
+    "tipo": "tejido",
+    "color": "#965a3c",
+    "color2": "#dcc396"
+   },
+   "mono": "#965a3c",
+   "adorno": {
+    "tipo": "lazo",
+    "color": "#965a3c"
+   },
+   "frase": "Mi chompita de alpaca es muy calientita.",
+   "emocion": "contenta",
+   "etiquetas": [
+    "invierno",
+    "peru",
+    "frio"
+   ],
+   "capas": {
+    "cuerpo": {
+     "url": "imagenes/ropa/dia/chompa-cuerpo.webp",
+     "caja": [
+      267,
+      677,
+      503,
+      347
+     ]
+    },
+    "cabeza": {
+     "url": "imagenes/ropa/dia/chompa-cabeza.webp",
+     "caja": [
+      628,
+      204,
+      150,
+      120
+     ]
+    }
+   }
+  },
+  {
+   "id": "idol",
+   "nombre": "idol",
+   "base": "#78bef9",
+   "tela": {
+    "tipo": "estrellas",
+    "color": "#ffe678"
+   },
+   "mono": "#ff78b4",
+   "adorno": {
+    "tipo": "estrella",
+    "color": "#ffdc5a",
+    "color2": "#ff96c8"
+   },
+   "frase": "¡Hoy soy una idol! ¿Me aplaudes, Maestro?",
+   "emocion": "emocionada",
+   "etiquetas": [
+    "musica",
+    "anime",
+    "canto"
+   ],
+   "capas": {
+    "cuerpo": {
+     "url": "imagenes/ropa/dia/idol-cuerpo.webp",
+     "caja": [
+      267,
+      677,
+      503,
+      347
+     ]
+    },
+    "cabeza": {
+     "url": "imagenes/ropa/dia/idol-cabeza.webp",
+     "caja": [
+      627,
+      201,
+      140,
+      133
+     ]
+    }
+   }
+  },
+  {
+   "id": "verano",
+   "nombre": "vestido de verano",
+   "base": "#fadc6e",
+   "tela": {
+    "tipo": "flores",
+    "color": "#ffffff",
+    "color2": "#ffb43c",
+    "tam": 10,
+    "paso": 48
+   },
+   "mono": "#ff963c",
+   "adorno": {
+    "tipo": "girasol",
+    "color": "#ffc828",
+    "color2": "#82501e"
+   },
+   "frase": "¡Vestido de verano! Hoy quiero ir a la playa.",
+   "emocion": "feliz",
+   "etiquetas": [
+    "verano",
+    "sol",
+    "playa"
+   ],
+   "capas": {
+    "cuerpo": {
+     "url": "imagenes/ropa/dia/verano-cuerpo.webp",
+     "caja": [
+      267,
+      677,
+      503,
+      347
+     ]
+    },
+    "cabeza": {
+     "url": "imagenes/ropa/dia/verano-cabeza.webp",
+     "caja": [
+      640,
+      201,
+      142,
+      140
+     ]
+    }
+   }
+  },
+  {
+   "id": "deportivo",
+   "nombre": "buzo deportivo",
+   "base": "#326edc",
+   "tela": {
+    "tipo": "rayas",
+    "color": "#ffffff",
+    "dir": "v",
+    "paso": 224,
+    "ancho": 16
+   },
+   "extras": [
+    {
+     "tipo": "cierre",
+     "color": "#c8c8d2"
+    }
+   ],
+   "mono": "#ffffff",
+   "adorno": {
+    "tipo": "vincha",
+    "color": "#ffffff"
+   },
+   "frase": "¡Hoy toca correr! Filo es la más rápida.",
+   "emocion": "orgullosa",
+   "etiquetas": [
+    "deporte",
+    "correr"
+   ],
+   "capas": {
+    "cuerpo": {
+     "url": "imagenes/ropa/dia/deportivo-cuerpo.webp",
+     "caja": [
+      267,
+      677,
+      503,
+      347
+     ]
+    },
+    "cabeza": {
+     "url": "imagenes/ropa/dia/deportivo-cabeza.webp",
+     "caja": [
+      225,
+      114,
+      580,
+      224
+     ]
+    }
+   }
+  },
+  {
+   "id": "poleron",
+   "nombre": "polerón",
+   "base": "#c3aaf0",
+   "extras": [
+    {
+     "tipo": "bolsillo",
+     "color": "#a58cd2"
+    }
+   ],
+   "mono": "#ffffff",
+   "adorno": {
+    "tipo": "lazo",
+    "color": "#c3aaf0"
+   },
+   "frase": "Mi polerón es suavecito, ¡dan ganas de abrazarlo!",
+   "emocion": "contenta",
+   "etiquetas": [
+    "comodo",
+    "casa"
+   ],
+   "capas": {
+    "cuerpo": {
+     "url": "imagenes/ropa/dia/poleron-cuerpo.webp",
+     "caja": [
+      267,
+      677,
+      503,
+      347
+     ]
+    },
+    "cabeza": {
+     "url": "imagenes/ropa/dia/poleron-cabeza.webp",
+     "caja": [
+      628,
+      204,
+      150,
+      120
+     ]
+    }
+   }
+  },
+  {
+   "id": "princesa",
+   "nombre": "princesa",
+   "base": "#f5a0cd",
+   "tela": {
+    "tipo": "lunares",
+    "color": "#f0c85a",
+    "tam": 4,
+    "paso": 44
+   },
+   "extras": [
+    {
+     "tipo": "franja",
+     "color": "#ffffff",
+     "y": 990,
+     "alto": 34
+    }
+   ],
+   "mono": "#e6b432",
+   "adorno": {
+    "tipo": "tiara",
+    "color": "#f0c33c",
+    "color2": "#ff78b4"
+   },
+   "frase": "¿Parezco una princesa, Maestro? ¡Como Melty!",
+   "emocion": "orgullosa",
+   "etiquetas": [
+    "princesa",
+    "anime",
+    "elegante"
+   ],
+   "capas": {
+    "cuerpo": {
+     "url": "imagenes/ropa/dia/princesa-cuerpo.webp",
+     "caja": [
+      267,
+      677,
+      503,
+      347
+     ]
+    },
+    "cabeza": {
+     "url": "imagenes/ropa/dia/princesa-cabeza.webp",
+     "caja": [
+      393,
+      151,
+      245,
+      119
+     ]
+    }
+   }
+  },
+  {
+   "id": "jardinera",
+   "nombre": "jardinera",
+   "base": "#466eb4",
+   "tela": {
+    "tipo": "brillos",
+    "color": "#5a82c8"
+   },
+   "extras": [
+    {
+     "tipo": "tirantes",
+     "color": "#3c5fa0",
+     "color2": "#fafafa"
+    }
+   ],
+   "mono": "#f0be3c",
+   "adorno": {
+    "tipo": "margarita",
+    "color": "#ffffff",
+    "color2": "#ffc828"
+   },
+   "frase": "¡Lista para ir al campo, Maestro!",
+   "emocion": "feliz",
+   "etiquetas": [
+    "campo",
+    "flores"
+   ],
+   "capas": {
+    "cuerpo": {
+     "url": "imagenes/ropa/dia/jardinera-cuerpo.webp",
+     "caja": [
+      267,
+      677,
+      503,
+      347
+     ]
+    },
+    "cabeza": {
+     "url": "imagenes/ropa/dia/jardinera-cabeza.webp",
+     "caja": [
+      637,
+      213,
+      133,
+      147
+     ]
+    }
+   }
+  },
+  {
+   "id": "maid",
+   "nombre": "maid",
+   "base": "#2d2d3c",
+   "extras": [
+    {
+     "tipo": "mandil",
+     "color": "#ffffff"
+    }
+   ],
+   "mono": "#ffffff",
+   "adorno": {
+    "tipo": "cofia",
+    "color": "#2d2d3c"
+   },
+   "frase": "¿Le sirvo algo, Maestro? ¿Un poco de carne?",
+   "emocion": "risa",
+   "etiquetas": [
+    "anime",
+    "cafe"
+   ],
+   "capas": {
+    "cuerpo": {
+     "url": "imagenes/ropa/dia/maid-cuerpo.webp",
+     "caja": [
+      267,
+      677,
+      503,
+      347
+     ]
+    },
+    "cabeza": {
+     "url": "imagenes/ropa/dia/maid-cabeza.webp",
+     "caja": [
+      364,
+      181,
+      300,
+      77
+     ]
+    }
+   }
+  },
+  {
+   "id": "aventurera",
+   "nombre": "aventurera",
+   "base": "#468c50",
+   "extras": [
+    {
+     "tipo": "franja",
+     "color": "#785028",
+     "y": 925,
+     "alto": 25
+    }
+   ],
+   "mono": "#f0be3c",
+   "adorno": {
+    "tipo": "hojas",
+    "color": "#46965a"
+   },
+   "frase": "¡Vamos de aventura, Maestro! Como en el mundo del escudo.",
+   "emocion": "emocionada",
+   "etiquetas": [
+    "aventura",
+    "anime",
+    "fantasia",
+    "escudo"
+   ],
+   "capas": {
+    "cuerpo": {
+     "url": "imagenes/ropa/dia/aventurera-cuerpo.webp",
+     "caja": [
+      267,
+      677,
+      503,
+      347
+     ]
+    },
+    "cabeza": {
+     "url": "imagenes/ropa/dia/aventurera-cabeza.webp",
+     "caja": [
+      648,
+      189,
+      107,
+      159
+     ]
+    }
+   }
+  },
+  {
+   "id": "marinera",
+   "nombre": "marinera",
+   "base": "#fcfaf5",
+   "tela": {
+    "tipo": "rayas",
+    "color": "#d2283c",
+    "paso": 120,
+    "ancho": 10
+   },
+   "mono": "#d2283c",
+   "adorno": {
+    "tipo": "flor",
+    "color": "#dc2337",
+    "color2": "#ffd250",
+    "petalos": 6,
+    "giro": 0.2
+   },
+   "frase": "¡Hoy bailo marinera! ¿Me acompañas con el pañuelo?",
+   "emocion": "emocionada",
+   "etiquetas": [
+    "peru",
+    "baile",
+    "fiestas patrias"
+   ],
+   "capas": {
+    "cuerpo": {
+     "url": "imagenes/ropa/dia/marinera-cuerpo.webp",
+     "caja": [
+      267,
+      677,
+      503,
+      347
+     ]
+    },
+    "cabeza": {
+     "url": "imagenes/ropa/dia/marinera-cabeza.webp",
+     "caja": [
+      648,
+      210,
+      126,
+      122
+     ]
+    }
+   }
+  },
+  {
+   "id": "gala",
+   "nombre": "vestido de gala",
+   "base": "#232d73",
+   "tela": {
+    "tipo": "brillos",
+    "color": "#e6ebff"
+   },
+   "mono": "#c8d2f0",
+   "adorno": {
+    "tipo": "tiara",
+    "color": "#d7dceb",
+    "color2": "#6e96ff"
+   },
+   "frase": "Hoy estoy elegante. ¿Vamos a un baile, Maestro?",
+   "emocion": "orgullosa",
+   "etiquetas": [
+    "elegante",
+    "noche",
+    "fiesta"
+   ],
+   "capas": {
+    "cuerpo": {
+     "url": "imagenes/ropa/dia/gala-cuerpo.webp",
+     "caja": [
+      267,
+      677,
+      503,
+      347
+     ]
+    },
+    "cabeza": {
+     "url": "imagenes/ropa/dia/gala-cabeza.webp",
+     "caja": [
+      393,
+      151,
+      245,
+      119
+     ]
+    }
+   }
+  },
+  {
+   "id": "vaquera",
+   "nombre": "vaquera",
+   "base": "#ffffff",
+   "tela": {
+    "tipo": "cuadros",
+    "color": "#c8323c",
+    "paso": 26
+   },
+   "mono": "#784628",
+   "adorno": {
+    "tipo": "lazo",
+    "color": "#784628"
+   },
+   "frase": "¡Yija! Filo la vaquera jala la carreta más rápido.",
+   "emocion": "risa",
+   "etiquetas": [
+    "campo",
+    "carreta"
+   ],
+   "capas": {
+    "cuerpo": {
+     "url": "imagenes/ropa/dia/vaquera-cuerpo.webp",
+     "caja": [
+      267,
+      677,
+      503,
+      347
+     ]
+    },
+    "cabeza": {
+     "url": "imagenes/ropa/dia/vaquera-cabeza.webp",
+     "caja": [
+      628,
+      204,
+      150,
+      120
+     ]
+    }
+   }
+  },
+  {
+   "id": "marinero",
+   "nombre": "marinero",
+   "base": "#ffffff",
+   "tela": {
+    "tipo": "rayas",
+    "color": "#2846a0",
+    "paso": 30,
+    "ancho": 12
+   },
+   "mono": "#dc2832",
+   "adorno": {
+    "tipo": "estrella",
+    "color": "#2846a0",
+    "color2": "#dc2832"
+   },
+   "frase": "¡Ahoy, Maestro! Hoy navegamos juntos.",
+   "emocion": "feliz",
+   "etiquetas": [
+    "mar",
+    "playa",
+    "verano"
+   ],
+   "capas": {
+    "cuerpo": {
+     "url": "imagenes/ropa/dia/marinero-cuerpo.webp",
+     "caja": [
+      267,
+      677,
+      503,
+      347
+     ]
+    },
+    "cabeza": {
+     "url": "imagenes/ropa/dia/marinero-cabeza.webp",
+     "caja": [
+      627,
+      201,
+      140,
+      133
+     ]
+    }
+   }
+  },
+  {
+   "id": "fresa",
+   "nombre": "fresa",
+   "base": "#e6374b",
+   "tela": {
+    "tipo": "lunares",
+    "color": "#ffe696",
+    "tam": 4,
+    "paso": 30
+   },
+   "extras": [
+    {
+     "tipo": "cuello",
+     "color": "#5ab450"
+    }
+   ],
+   "mono": "#5ab450",
+   "adorno": {
+    "tipo": "hojas",
+    "color": "#5ab450"
+   },
+   "frase": "¡Soy una fresita! Pero no me comas, Maestro.",
+   "emocion": "risa",
+   "etiquetas": [
+    "fruta",
+    "comida",
+    "dulce"
+   ],
+   "capas": {
+    "cuerpo": {
+     "url": "imagenes/ropa/dia/fresa-cuerpo.webp",
+     "caja": [
+      267,
+      677,
+      503,
+      347
+     ]
+    },
+    "cabeza": {
+     "url": "imagenes/ropa/dia/fresa-cabeza.webp",
+     "caja": [
+      648,
+      189,
+      107,
+      159
+     ]
+    }
+   }
+  },
+  {
+   "id": "arcoiris",
+   "nombre": "arcoíris",
+   "base": "#ffffff",
+   "extras": [
+    {
+     "tipo": "franjas",
+     "colores": [
+      "#ff5050",
+      "#ffa03c",
+      "#ffdc3c",
+      "#50c35a",
+      "#3c8cff",
+      "#9b5ae6"
+     ],
+     "y": 900,
+     "alto": 20
+    }
+   ],
+   "mono": "#9b5ae6",
+   "adorno": {
+    "tipo": "broches",
+    "colores": [
+     "#ff5050",
+     "#ffdc3c",
+     "#50c35a",
+     "#3c8cff"
+    ]
+   },
+   "frase": "¡Tengo todos los colores del arcoíris!",
+   "emocion": "emocionada",
+   "etiquetas": [
+    "colores",
+    "lluvia"
+   ],
+   "capas": {
+    "cuerpo": {
+     "url": "imagenes/ropa/dia/arcoiris-cuerpo.webp",
+     "caja": [
+      267,
+      677,
+      503,
+      347
+     ]
+    },
+    "cabeza": {
+     "url": "imagenes/ropa/dia/arcoiris-cabeza.webp",
+     "caja": [
+      618,
+      259,
+      140,
+      84
+     ]
+    }
+   }
+  },
+  {
+   "id": "galaxia",
+   "nombre": "galaxia",
+   "base": "#28286e",
+   "tela": {
+    "tipo": "estrellas",
+    "color": "#fff0aa",
+    "tam": 9,
+    "paso": 50
+   },
+   "mono": "#b48cff",
+   "adorno": {
+    "tipo": "luna",
+    "color": "#ffe682",
+    "color2": "#ffffff"
+   },
+   "frase": "Hoy llevo las estrellas puestas. ¿Las ves, Maestro?",
+   "emocion": "amor",
+   "etiquetas": [
+    "espacio",
+    "estrellas",
+    "noche"
+   ],
+   "capas": {
+    "cuerpo": {
+     "url": "imagenes/ropa/dia/galaxia-cuerpo.webp",
+     "caja": [
+      267,
+      677,
+      503,
+      347
+     ]
+    },
+    "cabeza": {
+     "url": "imagenes/ropa/dia/galaxia-cabeza.webp",
+     "caja": [
+      651,
+      209,
+      120,
+      119
+     ]
+    }
+   }
+  },
+  {
+   "id": "corazones",
+   "nombre": "corazones",
+   "base": "#ffc3d7",
+   "tela": {
+    "tipo": "corazones",
+    "color": "#e63c6e"
+   },
+   "mono": "#e63c6e",
+   "adorno": {
+    "tipo": "corazon",
+    "color": "#e63c6e"
+   },
+   "frase": "¡Corazones por todos lados! Porque te quiero, Maestro.",
+   "emocion": "amor",
+   "etiquetas": [
+    "amor",
+    "san valentin"
+   ],
+   "capas": {
+    "cuerpo": {
+     "url": "imagenes/ropa/dia/corazones-cuerpo.webp",
+     "caja": [
+      267,
+      677,
+      503,
+      347
+     ]
+    },
+    "cabeza": {
+     "url": "imagenes/ropa/dia/corazones-cabeza.webp",
+     "caja": [
+      654,
+      224,
+      110,
+      98
+     ]
+    }
+   }
+  },
+  {
+   "id": "mariposa",
+   "nombre": "mariposa",
+   "base": "#a0dcf5",
+   "tela": {
+    "tipo": "lunares",
+    "color": "#ffffff",
+    "tam": 6
+   },
+   "mono": "#ff8cbe",
+   "adorno": {
+    "tipo": "mariposa",
+    "color": "#ff8cbe",
+    "color2": "#ffe678"
+   },
+   "frase": "Una mariposa se posó en mi pelo. ¡Mira!",
+   "emocion": "sorpresa",
+   "etiquetas": [
+    "primavera",
+    "flores",
+    "animales"
+   ],
+   "capas": {
+    "cuerpo": {
+     "url": "imagenes/ropa/dia/mariposa-cuerpo.webp",
+     "caja": [
+      267,
+      677,
+      503,
+      347
+     ]
+    },
+    "cabeza": {
+     "url": "imagenes/ropa/dia/mariposa-cabeza.webp",
+     "caja": [
+      646,
+      213,
+      126,
+      98
+     ]
+    }
+   }
+  },
+  {
+   "id": "primavera",
+   "nombre": "primavera",
+   "base": "#b4e6a0",
+   "tela": {
+    "tipo": "flores",
+    "color": "#ff96b4",
+    "color2": "#ffffff",
+    "tam": 12
+   },
+   "mono": "#ff78a0",
+   "adorno": {
+    "tipo": "flor",
+    "color": "#ff96b4",
+    "color2": "#ffffff"
+   },
+   "frase": "¡Llegó la primavera! Todo está lleno de flores.",
+   "emocion": "feliz",
+   "etiquetas": [
+    "primavera",
+    "flores"
+   ],
+   "capas": {
+    "cuerpo": {
+     "url": "imagenes/ropa/dia/primavera-cuerpo.webp",
+     "caja": [
+      267,
+      677,
+      503,
+      347
+     ]
+    },
+    "cabeza": {
+     "url": "imagenes/ropa/dia/primavera-cabeza.webp",
+     "caja": [
+      649,
+      208,
+      124,
+      119
+     ]
+    }
+   }
+  },
+  {
+   "id": "otono",
+   "nombre": "otoño",
+   "base": "#e6823c",
+   "tela": {
+    "tipo": "rombos",
+    "color": "#8c4b1e"
+   },
+   "mono": "#8c4b1e",
+   "adorno": {
+    "tipo": "hojas",
+    "color": "#c8641e"
+   },
+   "frase": "Las hojas se ponen naranjas, como mi vestido.",
+   "emocion": "contenta",
+   "etiquetas": [
+    "otono"
+   ],
+   "capas": {
+    "cuerpo": {
+     "url": "imagenes/ropa/dia/otono-cuerpo.webp",
+     "caja": [
+      267,
+      677,
+      503,
+      347
+     ]
+    },
+    "cabeza": {
+     "url": "imagenes/ropa/dia/otono-cabeza.webp",
+     "caja": [
+      648,
+      189,
+      107,
+      159
+     ]
+    }
+   }
+  },
+  {
+   "id": "nieve",
+   "nombre": "nieve",
+   "base": "#dceaff",
+   "tela": {
+    "tipo": "estrellas",
+    "color": "#7896d2",
+    "tam": 9
+   },
+   "mono": "#3c64be",
+   "adorno": {
+    "tipo": "orejeras",
+    "color": "#3c64be",
+    "color2": "#ffffff"
+   },
+   "frase": "¡Brrr! Copitos de nieve. ¿Hacemos un muñeco?",
+   "emocion": "emocionada",
+   "etiquetas": [
+    "invierno",
+    "frio",
+    "navidad"
+   ],
+   "capas": {
+    "cuerpo": {
+     "url": "imagenes/ropa/dia/nieve-cuerpo.webp",
+     "caja": [
+      267,
+      677,
+      503,
+      347
+     ]
+    },
+    "cabeza": {
+     "url": "imagenes/ropa/dia/nieve-cabeza.webp",
+     "caja": [
+      176,
+      104,
+      681,
+      437
+     ]
+    }
+   }
+  },
+  {
+   "id": "playa",
+   "nombre": "playa",
+   "base": "#64c8f0",
+   "tela": {
+    "tipo": "rayas",
+    "color": "#ffffff",
+    "paso": 40,
+    "ancho": 10
+   },
+   "mono": "#ffffff",
+   "adorno": {
+    "tipo": "flor",
+    "color": "#ff5a78",
+    "color2": "#ffe650",
+    "petalos": 5
+   },
+   "frase": "¡A la playa, Maestro! Filo quiere correr en la arena.",
+   "emocion": "emocionada",
+   "etiquetas": [
+    "playa",
+    "verano",
+    "mar"
+   ],
+   "capas": {
+    "cuerpo": {
+     "url": "imagenes/ropa/dia/playa-cuerpo.webp",
+     "caja": [
+      267,
+      677,
+      503,
+      347
+     ]
+    },
+    "cabeza": {
+     "url": "imagenes/ropa/dia/playa-cabeza.webp",
+     "caja": [
+      649,
+      208,
+      124,
+      119
+     ]
+    }
+   }
+  },
+  {
+   "id": "pastelera",
+   "nombre": "pastelera",
+   "base": "#ffd2e1",
+   "tela": {
+    "tipo": "cuadros",
+    "color": "#ffffff",
+    "paso": 24
+   },
+   "extras": [
+    {
+     "tipo": "mandil",
+     "color": "#ffffff"
+    }
+   ],
+   "mono": "#e65a8c",
+   "adorno": {
+    "tipo": "lazo",
+    "color": "#e65a8c"
+   },
+   "frase": "¡Hoy hago pasteles! Aunque prefiero la carne…",
+   "emocion": "risa",
+   "etiquetas": [
+    "comida",
+    "dulce",
+    "cocina"
+   ],
+   "capas": {
+    "cuerpo": {
+     "url": "imagenes/ropa/dia/pastelera-cuerpo.webp",
+     "caja": [
+      267,
+      677,
+      503,
+      347
+     ]
+    },
+    "cabeza": {
+     "url": "imagenes/ropa/dia/pastelera-cabeza.webp",
+     "caja": [
+      628,
+      204,
+      150,
+      120
+     ]
+    }
+   }
+  },
+  {
+   "id": "caramelo",
+   "nombre": "caramelo",
+   "base": "#ffffff",
+   "tela": {
+    "tipo": "rayas",
+    "color": "#ff7896",
+    "paso": 28,
+    "ancho": 13
+   },
+   "mono": "#ff4678",
+   "adorno": {
+    "tipo": "lazo",
+    "color": "#ff4678"
+   },
+   "frase": "¡Parezco un caramelo! Dulce como Filo.",
+   "emocion": "risa",
+   "etiquetas": [
+    "dulce",
+    "comida"
+   ],
+   "capas": {
+    "cuerpo": {
+     "url": "imagenes/ropa/dia/caramelo-cuerpo.webp",
+     "caja": [
+      267,
+      677,
+      503,
+      347
+     ]
+    },
+    "cabeza": {
+     "url": "imagenes/ropa/dia/caramelo-cabeza.webp",
+     "caja": [
+      628,
+      204,
+      150,
+      120
+     ]
+    }
+   }
+  },
+  {
+   "id": "menta",
+   "nombre": "menta",
+   "base": "#a0e6c8",
+   "tela": {
+    "tipo": "lunares",
+    "color": "#ffffff",
+    "tam": 7
+   },
+   "mono": "#2d9b78",
+   "adorno": {
+    "tipo": "flor",
+    "color": "#ffffff",
+    "color2": "#2d9b78"
+   },
+   "frase": "Hoy me siento fresquita, como la menta.",
+   "emocion": "contenta",
+   "etiquetas": [
+    "verano",
+    "fresco"
+   ],
+   "capas": {
+    "cuerpo": {
+     "url": "imagenes/ropa/dia/menta-cuerpo.webp",
+     "caja": [
+      267,
+      677,
+      503,
+      347
+     ]
+    },
+    "cabeza": {
+     "url": "imagenes/ropa/dia/menta-cabeza.webp",
+     "caja": [
+      649,
+      208,
+      124,
+      119
+     ]
+    }
+   }
+  },
+  {
+   "id": "lavanda",
+   "nombre": "lavanda",
+   "base": "#b9a5e1",
+   "tela": {
+    "tipo": "flores",
+    "color": "#7d5fc3",
+    "color2": "#ffffff",
+    "tam": 9,
+    "paso": 42
+   },
+   "mono": "#7d5fc3",
+   "adorno": {
+    "tipo": "flor",
+    "color": "#9b7dd7",
+    "color2": "#ffffff",
+    "petalos": 6
+   },
+   "frase": "Huelo a lavanda. ¿Te gusta, Maestro?",
+   "emocion": "timida",
+   "etiquetas": [
+    "flores",
+    "primavera"
+   ],
+   "capas": {
+    "cuerpo": {
+     "url": "imagenes/ropa/dia/lavanda-cuerpo.webp",
+     "caja": [
+      267,
+      677,
+      503,
+      347
+     ]
+    },
+    "cabeza": {
+     "url": "imagenes/ropa/dia/lavanda-cabeza.webp",
+     "caja": [
+      649,
+      209,
+      124,
+      124
+     ]
+    }
+   }
+  },
+  {
+   "id": "nubes",
+   "nombre": "cielo",
+   "base": "#8cc8ff",
+   "tela": {
+    "tipo": "lunares",
+    "color": "#ffffff",
+    "tam": 12,
+    "paso": 60
+   },
+   "mono": "#ffffff",
+   "adorno": {
+    "tipo": "estrella",
+    "color": "#ffe678",
+    "color2": "#ffffff"
+   },
+   "frase": "Llevo el cielo puesto. ¡Quiero volar contigo!",
+   "emocion": "feliz",
+   "etiquetas": [
+    "cielo",
+    "volar"
+   ],
+   "capas": {
+    "cuerpo": {
+     "url": "imagenes/ropa/dia/nubes-cuerpo.webp",
+     "caja": [
+      267,
+      677,
+      503,
+      347
+     ]
+    },
+    "cabeza": {
+     "url": "imagenes/ropa/dia/nubes-cabeza.webp",
+     "caja": [
+      627,
+      201,
+      140,
+      133
+     ]
+    }
+   }
+  },
+  {
+   "id": "noche",
+   "nombre": "noche",
+   "base": "#192350",
+   "tela": {
+    "tipo": "estrellas",
+    "color": "#ffe682",
+    "tam": 7,
+    "paso": 44
+   },
+   "mono": "#ffe682",
+   "adorno": {
+    "tipo": "luna",
+    "color": "#ffe682",
+    "color2": "#ffffff"
+   },
+   "frase": "Es mi vestido de noche estrellada. ¡Qué bonito!",
+   "emocion": "amor",
+   "etiquetas": [
+    "noche",
+    "estrellas"
+   ],
+   "capas": {
+    "cuerpo": {
+     "url": "imagenes/ropa/dia/noche-cuerpo.webp",
+     "caja": [
+      267,
+      677,
+      503,
+      347
+     ]
+    },
+    "cabeza": {
+     "url": "imagenes/ropa/dia/noche-cabeza.webp",
+     "caja": [
+      651,
+      209,
+      120,
+      119
+     ]
+    }
+   }
+  },
+  {
+   "id": "sol",
+   "nombre": "sol",
+   "base": "#ffc83c",
+   "tela": {
+    "tipo": "estrellas",
+    "color": "#ff8c1e",
+    "tam": 10
+   },
+   "mono": "#ff7814",
+   "adorno": {
+    "tipo": "estrella",
+    "color": "#ff8c1e",
+    "color2": "#ffffff"
+   },
+   "frase": "¡Soy un solcito! Hoy todo brilla, Maestro.",
+   "emocion": "feliz",
+   "etiquetas": [
+    "verano",
+    "sol"
+   ],
+   "capas": {
+    "cuerpo": {
+     "url": "imagenes/ropa/dia/sol-cuerpo.webp",
+     "caja": [
+      267,
+      677,
+      503,
+      347
+     ]
+    },
+    "cabeza": {
+     "url": "imagenes/ropa/dia/sol-cabeza.webp",
+     "caja": [
+      627,
+      201,
+      140,
+      133
+     ]
+    }
+   }
+  },
+  {
+   "id": "cientifica",
+   "nombre": "científica",
+   "base": "#f5f8fc",
+   "extras": [
+    {
+     "tipo": "bolsillo",
+     "color": "#dce4f0"
+    },
+    {
+     "tipo": "botones",
+     "color": "#9bb4d7",
+     "x": 540
+    }
+   ],
+   "mono": "#3cb46e",
+   "adorno": {
+    "tipo": "pinzas",
+    "color": "#3cb46e"
+   },
+   "frase": "¡La científica Filo! Hoy hacemos experimentos.",
+   "emocion": "orgullosa",
+   "etiquetas": [
+    "ciencia",
+    "estudio"
+   ],
+   "capas": {
+    "cuerpo": {
+     "url": "imagenes/ropa/dia/cientifica-cuerpo.webp",
+     "caja": [
+      267,
+      677,
+      503,
+      347
+     ]
+    },
+    "cabeza": {
+     "url": "imagenes/ropa/dia/cientifica-cabeza.webp",
+     "caja": [
+      648,
+      239,
+      101,
+      62
+     ]
+    }
+   }
+  },
+  {
+   "id": "tenista",
+   "nombre": "tenista",
+   "base": "#ffffff",
+   "extras": [
+    {
+     "tipo": "franja",
+     "color": "#3caa50",
+     "y": 960,
+     "alto": 22
+    }
+   ],
+   "mono": "#3caa50",
+   "adorno": {
+    "tipo": "vincha",
+    "color": "#3caa50"
+   },
+   "frase": "¡Saque de Filo! ¿Jugamos tenis, Maestro?",
+   "emocion": "emocionada",
+   "etiquetas": [
+    "deporte"
+   ],
+   "capas": {
+    "cuerpo": {
+     "url": "imagenes/ropa/dia/tenista-cuerpo.webp",
+     "caja": [
+      267,
+      677,
+      503,
+      347
+     ]
+    },
+    "cabeza": {
+     "url": "imagenes/ropa/dia/tenista-cabeza.webp",
+     "caja": [
+      225,
+      114,
+      580,
+      224
+     ]
+    }
+   }
+  },
+  {
+   "id": "seleccion",
+   "nombre": "camiseta de la selección",
+   "base": "#ffffff",
+   "extras": [
+    {
+     "tipo": "banda",
+     "color": "#d71e2d"
+    }
+   ],
+   "mono": "#d71e2d",
+   "adorno": {
+    "tipo": "vincha",
+    "color": "#d71e2d"
+   },
+   "frase": "¡Arriba Perú! Hoy alentamos juntos, Maestro.",
+   "emocion": "emocionada",
+   "etiquetas": [
+    "peru",
+    "futbol",
+    "deporte"
+   ],
+   "capas": {
+    "cuerpo": {
+     "url": "imagenes/ropa/dia/seleccion-cuerpo.webp",
+     "caja": [
+      267,
+      677,
+      503,
+      347
+     ]
+    },
+    "cabeza": {
+     "url": "imagenes/ropa/dia/seleccion-cabeza.webp",
+     "caja": [
+      225,
+      114,
+      580,
+      224
+     ]
+    }
+   }
+  },
+  {
+   "id": "bailarina",
+   "nombre": "bailarina",
+   "base": "#ffd7e6",
+   "tela": {
+    "tipo": "brillos",
+    "color": "#ffffff"
+   },
+   "mono": "#f08cb4",
+   "adorno": {
+    "tipo": "lazo",
+    "color": "#f08cb4"
+   },
+   "frase": "Mira cómo giro, Maestro. ¡Soy bailarina!",
+   "emocion": "feliz",
+   "etiquetas": [
+    "baile",
+    "musica"
+   ],
+   "capas": {
+    "cuerpo": {
+     "url": "imagenes/ropa/dia/bailarina-cuerpo.webp",
+     "caja": [
+      267,
+      677,
+      503,
+      347
+     ]
+    },
+    "cabeza": {
+     "url": "imagenes/ropa/dia/bailarina-cabeza.webp",
+     "caja": [
+      628,
+      204,
+      150,
+      120
+     ]
+    }
+   }
+  },
+  {
+   "id": "hada",
+   "nombre": "hada",
+   "base": "#9be6d7",
+   "tela": {
+    "tipo": "brillos",
+    "color": "#ffffff"
+   },
+   "mono": "#ffffff",
+   "adorno": {
+    "tipo": "flor",
+    "color": "#ffffff",
+    "color2": "#ffe678",
+    "petalos": 5
+   },
+   "frase": "Soy un hada del bosque. ¿Pido un deseo por ti?",
+   "emocion": "amor",
+   "etiquetas": [
+    "fantasia",
+    "bosque"
+   ],
+   "capas": {
+    "cuerpo": {
+     "url": "imagenes/ropa/dia/hada-cuerpo.webp",
+     "caja": [
+      267,
+      677,
+      503,
+      347
+     ]
+    },
+    "cabeza": {
+     "url": "imagenes/ropa/dia/hada-cabeza.webp",
+     "caja": [
+      649,
+      208,
+      124,
+      119
+     ]
+    }
+   }
+  },
+  {
+   "id": "cereza",
+   "nombre": "cereza",
+   "base": "#a01e32",
+   "tela": {
+    "tipo": "lunares",
+    "color": "#ffc8d2",
+    "tam": 5,
+    "paso": 36
+   },
+   "mono": "#ffc8d2",
+   "adorno": {
+    "tipo": "corazon",
+    "color": "#e6324b"
+   },
+   "frase": "Rojo cereza. ¡Me veo linda hoy!",
+   "emocion": "orgullosa",
+   "etiquetas": [
+    "fruta",
+    "dulce"
+   ],
+   "capas": {
+    "cuerpo": {
+     "url": "imagenes/ropa/dia/cereza-cuerpo.webp",
+     "caja": [
+      267,
+      677,
+      503,
+      347
+     ]
+    },
+    "cabeza": {
+     "url": "imagenes/ropa/dia/cereza-cabeza.webp",
+     "caja": [
+      654,
+      224,
+      110,
+      98
+     ]
+    }
+   }
+  },
+  {
+   "id": "oceano",
+   "nombre": "océano",
+   "base": "#2878c8",
+   "tela": {
+    "tipo": "rayas",
+    "color": "#64aaf0",
+    "paso": 36,
+    "ancho": 8
+   },
+   "mono": "#ff8c46",
+   "adorno": {
+    "tipo": "estrella",
+    "color": "#ff8c46",
+    "color2": "#ffffff"
+   },
+   "frase": "Hoy tengo el mar en mi vestido. ¡Y una estrella de mar!",
+   "emocion": "feliz",
+   "etiquetas": [
+    "mar",
+    "playa"
+   ],
+   "capas": {
+    "cuerpo": {
+     "url": "imagenes/ropa/dia/oceano-cuerpo.webp",
+     "caja": [
+      267,
+      677,
+      503,
+      347
+     ]
+    },
+    "cabeza": {
+     "url": "imagenes/ropa/dia/oceano-cabeza.webp",
+     "caja": [
+      627,
+      201,
+      140,
+      133
+     ]
+    }
+   }
+  },
+  {
+   "id": "bosque",
+   "nombre": "bosque",
+   "base": "#326e3c",
+   "tela": {
+    "tipo": "rombos",
+    "color": "#6eb45a",
+    "tam": 10
+   },
+   "mono": "#e6c35a",
+   "adorno": {
+    "tipo": "hojas",
+    "color": "#5aaa50"
+   },
+   "frase": "Huele a bosque. ¡Corramos entre los árboles!",
+   "emocion": "emocionada",
+   "etiquetas": [
+    "bosque",
+    "aventura",
+    "campo"
+   ],
+   "capas": {
+    "cuerpo": {
+     "url": "imagenes/ropa/dia/bosque-cuerpo.webp",
+     "caja": [
+      267,
+      677,
+      503,
+      347
+     ]
+    },
+    "cabeza": {
+     "url": "imagenes/ropa/dia/bosque-cabeza.webp",
+     "caja": [
+      648,
+      189,
+      107,
+      159
+     ]
+    }
+   }
+  },
+  {
+   "id": "carnaval",
+   "nombre": "carnaval",
+   "base": "#ffffff",
+   "tela": {
+    "tipo": "lunares",
+    "colores": [
+     "#ff4b5a",
+     "#ffc31e",
+     "#3cb45a",
+     "#3c8cf0"
+    ],
+    "tam": 9
+   },
+   "mono": "#ff4b5a",
+   "adorno": {
+    "tipo": "broches",
+    "colores": [
+     "#ff4b5a",
+     "#ffc31e",
+     "#3cb45a",
+     "#3c8cf0"
+    ]
+   },
+   "frase": "¡Carnaval! ¿Jugamos con agua, Maestro?",
+   "emocion": "risa",
+   "etiquetas": [
+    "fiesta",
+    "peru",
+    "verano"
+   ],
+   "capas": {
+    "cuerpo": {
+     "url": "imagenes/ropa/dia/carnaval-cuerpo.webp",
+     "caja": [
+      267,
+      677,
+      503,
+      347
+     ]
+    },
+    "cabeza": {
+     "url": "imagenes/ropa/dia/carnaval-cabeza.webp",
+     "caja": [
+      618,
+      259,
+      140,
+      84
+     ]
+    }
+   }
+  },
+  {
+   "id": "escoces",
+   "nombre": "cuadros escoceses",
+   "base": "#c3283c",
+   "tela": {
+    "tipo": "cuadros",
+    "color": "#1e2850",
+    "paso": 32
+   },
+   "mono": "#1e2850",
+   "adorno": {
+    "tipo": "lazo",
+    "color": "#1e2850"
+   },
+   "frase": "Cuadros escoceses. ¡Me siento muy estudiosa!",
+   "emocion": "orgullosa",
+   "etiquetas": [
+    "colegio",
+    "estudio"
+   ],
+   "capas": {
+    "cuerpo": {
+     "url": "imagenes/ropa/dia/escoces-cuerpo.webp",
+     "caja": [
+      267,
+      677,
+      503,
+      347
+     ]
+    },
+    "cabeza": {
+     "url": "imagenes/ropa/dia/escoces-cabeza.webp",
+     "caja": [
+      628,
+      204,
+      150,
+      120
+     ]
+    }
+   }
+  },
+  {
+   "id": "mezclilla",
+   "nombre": "mezclilla",
+   "base": "#5a7db4",
+   "tela": {
+    "tipo": "brillos",
+    "color": "#7896c8"
+   },
+   "extras": [
+    {
+     "tipo": "botones",
+     "color": "#e6c35a"
+    }
+   ],
+   "mono": "#e6c35a",
+   "adorno": {
+    "tipo": "pinzas",
+    "color": "#e6c35a"
+   },
+   "frase": "Hoy vestido de mezclilla, ¡lista para todo!",
+   "emocion": "contenta",
+   "etiquetas": [
+    "comodo"
+   ],
+   "capas": {
+    "cuerpo": {
+     "url": "imagenes/ropa/dia/mezclilla-cuerpo.webp",
+     "caja": [
+      267,
+      677,
+      503,
+      347
+     ]
+    },
+    "cabeza": {
+     "url": "imagenes/ropa/dia/mezclilla-cabeza.webp",
+     "caja": [
+      648,
+      239,
+      101,
+      62
+     ]
+    }
+   }
+  },
+  {
+   "id": "angelita",
+   "nombre": "angelita",
+   "base": "#fffcf0",
+   "tela": {
+    "tipo": "brillos",
+    "color": "#e6c35a"
+   },
+   "mono": "#e6be46",
+   "adorno": {
+    "tipo": "estrella",
+    "color": "#ffd250",
+    "color2": "#ffffff"
+   },
+   "frase": "Con mis alas de verdad parezco un angelito, ¿no?",
+   "emocion": "timida",
+   "etiquetas": [
+    "navidad",
+    "angel"
+   ],
+   "capas": {
+    "cuerpo": {
+     "url": "imagenes/ropa/dia/angelita-cuerpo.webp",
+     "caja": [
+      267,
+      677,
+      503,
+      347
+     ]
+    },
+    "cabeza": {
+     "url": "imagenes/ropa/dia/angelita-cabeza.webp",
+     "caja": [
+      627,
+      201,
+      140,
+      133
+     ]
+    }
+   }
+  },
+  {
+   "id": "andina",
+   "nombre": "andina",
+   "base": "#c8283c",
+   "tela": {
+    "tipo": "rombos",
+    "colores": [
+     "#ffc31e",
+     "#3cb45a",
+     "#ffffff",
+     "#3c8cf0"
+    ],
+    "tam": 13
+   },
+   "extras": [
+    {
+     "tipo": "franjas",
+     "colores": [
+      "#ffc31e",
+      "#3cb45a",
+      "#3c8cf0"
+     ],
+     "y": 960,
+     "alto": 14
+    }
+   ],
+   "mono": "#ffc31e",
+   "adorno": {
+    "tipo": "flor",
+    "color": "#e6284b",
+    "color2": "#ffc31e",
+    "petalos": 6
+   },
+   "frase": "¡Me puse mi ropa andina con una cantuta en el pelo!",
+   "emocion": "orgullosa",
+   "etiquetas": [
+    "peru",
+    "andes",
+    "fiestas patrias"
+   ],
+   "capas": {
+    "cuerpo": {
+     "url": "imagenes/ropa/dia/andina-cuerpo.webp",
+     "caja": [
+      267,
+      677,
+      503,
+      347
+     ]
+    },
+    "cabeza": {
+     "url": "imagenes/ropa/dia/andina-cabeza.webp",
+     "caja": [
+      649,
+      209,
+      124,
+      124
+     ]
+    }
+   }
+  },
+  {
+   "id": "chocolate",
+   "nombre": "chocolate",
+   "base": "#7d4b2d",
+   "tela": {
+    "tipo": "lunares",
+    "color": "#f0dcbe",
+    "tam": 6
+   },
+   "mono": "#f0dcbe",
+   "adorno": {
+    "tipo": "lazo",
+    "color": "#f0dcbe"
+   },
+   "frase": "Vestido de chocolate. ¡Mmm, qué hambre!",
+   "emocion": "risa",
+   "etiquetas": [
+    "dulce",
+    "comida"
+   ],
+   "capas": {
+    "cuerpo": {
+     "url": "imagenes/ropa/dia/chocolate-cuerpo.webp",
+     "caja": [
+      267,
+      677,
+      503,
+      347
+     ]
+    },
+    "cabeza": {
+     "url": "imagenes/ropa/dia/chocolate-cabeza.webp",
+     "caja": [
+      628,
+      204,
+      150,
+      120
+     ]
+    }
+   }
+  },
+  {
+   "id": "limon",
+   "nombre": "limón",
+   "base": "#fff08c",
+   "tela": {
+    "tipo": "cuadros",
+    "color": "#b4dc50",
+    "paso": 26
+   },
+   "mono": "#64aa32",
+   "adorno": {
+    "tipo": "hojas",
+    "color": "#64aa32"
+   },
+   "frase": "¡Limonada fresquita para el calor!",
+   "emocion": "feliz",
+   "etiquetas": [
+    "verano",
+    "fruta"
+   ],
+   "capas": {
+    "cuerpo": {
+     "url": "imagenes/ropa/dia/limon-cuerpo.webp",
+     "caja": [
+      267,
+      677,
+      503,
+      347
+     ]
+    },
+    "cabeza": {
+     "url": "imagenes/ropa/dia/limon-cabeza.webp",
+     "caja": [
+      648,
+      189,
+      107,
+      159
+     ]
+    }
+   }
+  },
+  {
+   "id": "uva",
+   "nombre": "uva",
+   "base": "#7d3ca0",
+   "tela": {
+    "tipo": "lunares",
+    "color": "#c896e6",
+    "tam": 8,
+    "paso": 34
+   },
+   "mono": "#64b450",
+   "adorno": {
+    "tipo": "hojas",
+    "color": "#64b450"
+   },
+   "frase": "Morado como las uvas. ¿Me das una, Maestro?",
+   "emocion": "feliz",
+   "etiquetas": [
+    "fruta"
+   ],
+   "capas": {
+    "cuerpo": {
+     "url": "imagenes/ropa/dia/uva-cuerpo.webp",
+     "caja": [
+      267,
+      677,
+      503,
+      347
+     ]
+    },
+    "cabeza": {
+     "url": "imagenes/ropa/dia/uva-cabeza.webp",
+     "caja": [
+      648,
+      189,
+      107,
+      159
+     ]
+    }
+   }
+  },
+  {
+   "id": "pirata",
+   "nombre": "pirata",
+   "base": "#ffffff",
+   "tela": {
+    "tipo": "rayas",
+    "color": "#232332",
+    "paso": 34,
+    "ancho": 14
+   },
+   "extras": [
+    {
+     "tipo": "franja",
+     "color": "#b41e28",
+     "y": 925,
+     "alto": 28
+    }
+   ],
+   "mono": "#b41e28",
+   "adorno": {
+    "tipo": "lazo",
+    "color": "#b41e28"
+   },
+   "frase": "¡Arrr! La pirata Filo busca un tesoro de carne.",
+   "emocion": "risa",
+   "etiquetas": [
+    "aventura",
+    "mar"
+   ],
+   "capas": {
+    "cuerpo": {
+     "url": "imagenes/ropa/dia/pirata-cuerpo.webp",
+     "caja": [
+      267,
+      677,
+      503,
+      347
+     ]
+    },
+    "cabeza": {
+     "url": "imagenes/ropa/dia/pirata-cabeza.webp",
+     "caja": [
+      628,
+      204,
+      150,
+      120
+     ]
+    }
+   }
+  },
+  {
+   "id": "rosa_cielo",
+   "nombre": "rosa y celeste",
+   "base": "#ffc8dc",
+   "tela": {
+    "tipo": "rayas",
+    "color": "#aadcff",
+    "dir": "v",
+    "paso": 40,
+    "ancho": 16
+   },
+   "mono": "#5aaaf0",
+   "adorno": {
+    "tipo": "mariposa",
+    "color": "#5aaaf0",
+    "color2": "#ffc8dc"
+   },
+   "frase": "Rosado y celeste, mis colores favoritos de hoy.",
+   "emocion": "contenta",
+   "etiquetas": [
+    "colores"
+   ],
+   "capas": {
+    "cuerpo": {
+     "url": "imagenes/ropa/dia/rosa_cielo-cuerpo.webp",
+     "caja": [
+      267,
+      677,
+      503,
+      347
+     ]
+    },
+    "cabeza": {
+     "url": "imagenes/ropa/dia/rosa_cielo-cabeza.webp",
+     "caja": [
+      646,
+      213,
+      126,
+      98
+     ]
+    }
+   }
+  }
+ ],
+ "modos": [
+  {
+   "id": "youtuber",
+   "nombre": "YouTuber",
+   "base": "#28282f",
+   "tela": {
+    "tipo": "rayas",
+    "color": "#e1232d",
+    "paso": 150,
+    "ancho": 30
+   },
+   "extras": [
+    {
+     "tipo": "play",
+     "x": 560,
+     "y": 880
+    }
+   ],
+   "mono": "#e1232d",
+   "adorno": {
+    "tipo": "ninguno"
+   },
+   "frase": "¡Modo YouTuber activado, Maestro!",
+   "emocion": "emocionada",
+   "etiquetas": [
+    "youtube"
+   ],
+   "capas": {
+    "cuerpo": {
+     "url": "imagenes/ropa/dia/youtuber-cuerpo.webp",
+     "caja": [
+      267,
+      677,
+      503,
+      347
+     ]
+    }
+   }
+  },
+  {
+   "id": "buscadora",
+   "nombre": "investigadora",
+   "base": "#d7e8ff",
+   "tela": {
+    "tipo": "lunares",
+    "colores": [
+     "#4285f4",
+     "#ea4335",
+     "#fbbc05",
+     "#34a853"
+    ],
+    "tam": 8
+   },
+   "extras": [
+    {
+     "tipo": "buscador",
+     "y": 905
+    },
+    {
+     "tipo": "franja",
+     "color": "#4285f4",
+     "y": 1000,
+     "alto": 24
+    }
+   ],
+   "mono": "#ea4335",
+   "adorno": {
+    "tipo": "vincha",
+    "colores": [
+     "#4285f4",
+     "#ea4335",
+     "#fbbc05",
+     "#34a853"
+    ]
+   },
+   "frase": "¡Modo investigadora activado!",
+   "emocion": "orgullosa",
+   "etiquetas": [
+    "busqueda"
+   ],
+   "capas": {
+    "cuerpo": {
+     "url": "imagenes/ropa/dia/buscadora-cuerpo.webp",
+     "caja": [
+      267,
+      677,
+      503,
+      347
+     ]
+    },
+    "cabeza": {
+     "url": "imagenes/ropa/dia/buscadora-cabeza.webp",
+     "caja": [
+      225,
+      114,
+      581,
+      227
+     ]
+    }
+   }
+  }
+ ]
+}

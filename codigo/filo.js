@@ -516,6 +516,7 @@
   // ropa segun la ocasion (codigo/ropa.js): las piezas estan hechas para la ilustracion y aqui se achican
   // para que los ojos de las dos coincidan (ilustracion: ojos 388/653, y 460; dibujo: 254/356, y 309)
   const AJUSTE = 'translate(305 292) scale(0.41) translate(-520 -460)';  // un poco mas arriba: su cabeza es mas alta
+  const dia = { adorno: grupo(cabeza, { class: 'ropa-dia' }) };  // adorno del pelo de la ropa del dia (debajo de los gorros)
   const ropa = { cuerpo: grupo(cuerpo, { class: 'ropa' }), cabeza: grupo(cabeza, { class: 'ropa' }), extra: grupo(cuerpo, { class: 'ropa' }) };
 
   window.FiloDibujo = {
@@ -530,6 +531,11 @@
     toque(zona) { estado.toque = { zona, desde: performance.now() / 1000 }; },
     nivel(n) { estado.nivel = n; },
     lentes(si) { lentes.style.opacity = si ? 1 : 0; },
-    ropa(nombre) { if (window.FiloRopa) window.FiloRopa.vestir(ropa, nombre, { conCuerpo: false, ajuste: AJUSTE }); },
+    ropa(nombre) {
+      if (!window.FiloRopa) return;
+      window.FiloRopa.vestir(ropa, nombre, { conCuerpo: false, ajuste: AJUSTE });
+      dia.adorno.style.display = window.FiloRopa.tapa(nombre).cabeza ? 'none' : '';
+    },
+    ropaDia(receta) { if (window.FiloRopa) window.FiloRopa.vestirDia(dia, receta, { ajuste: AJUSTE, raiz: document.getElementById('filo') }); },
   };
 })();
