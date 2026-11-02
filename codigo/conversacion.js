@@ -563,11 +563,28 @@
   const horaMaestro = () => new Date().toLocaleString('es', { weekday: 'long', day: 'numeric', month: 'long', hour: '2-digit', minute: '2-digit' });
   const entrada = $('mensaje');
   const boton = $('b-enviar');
+  // el cuadro de escribir crece hacia arriba hasta 4 lineas; si hay mas, sale la barrita
+  function crecerEntrada() {
+    entrada.style.height = 'auto';
+    const estilo = getComputedStyle(entrada);
+    const borde = parseFloat(estilo.paddingTop) + parseFloat(estilo.paddingBottom) + parseFloat(estilo.borderTopWidth) + parseFloat(estilo.borderBottomWidth);
+    const maximo = parseFloat(estilo.lineHeight) * 4 + borde;
+    const alto = entrada.scrollHeight + parseFloat(estilo.borderTopWidth) + parseFloat(estilo.borderBottomWidth);
+    entrada.style.height = Math.min(alto, maximo) + 'px';
+    entrada.style.overflowY = alto > maximo + 1 ? 'auto' : 'hidden';
+  }
+  entrada.addEventListener('input', crecerEntrada);
+  // Enter envia; Shift + Enter hace otra linea
+  entrada.addEventListener('keydown', (e) => {
+    if (e.key === 'Enter' && !e.shiftKey && !e.isComposing) { e.preventDefault(); $('charla').requestSubmit(); }
+  });
+  addEventListener('resize', crecerEntrada);
   $('charla').addEventListener('submit', (e) => {
     e.preventDefault();
     const mensaje = entrada.value.trim();
     if (!mensaje && !fotoAdjunta) return;
     entrada.value = '';
+    crecerEntrada();
     if (porContar && !dormida) { porContar = null; aviso(''); }  // le escribio: responde eso (la libretita queda)
     preguntar(mensaje || 'Mira esta imagen y dime qué ves.', true);
   });
@@ -978,6 +995,7 @@
       quizasPollito(0.08);
       const secreto = d.accion && d.accion.adivinanza ? `(dibujé en secreto: ${d.accion.titulo}; el Maestro tiene que adivinarlo) ` : '';
       if (guardar) historial.push({ rol: 'usuario', texto: mensaje + (imagen ? ' [le mostré una imagen]' : '') }, { rol: 'filo', texto: secreto + (d.respuesta || '(' + (d.accion ? d.accion.titulo : '') + ')') });
+      if (d.olvido) historial.length = 0;  // olvidó algo: la charla de esta página tampoco lo guarda
       if (d.accion) {
         boton.disabled = false;
         const quiere = d.accion.tipo === 'video' ? 'youtube' : d.accion.tipo === 'buscar' ? 'busqueda' : null;
@@ -1121,6 +1139,7 @@
       juntado = '';
       if (!texto) return;
       entrada.value = '';
+      crecerEntrada();
       preguntar(texto, true);
     }
     function arrancar() {
@@ -1146,6 +1165,7 @@
           else parcial += r[0].transcript;
         }
         entrada.value = (juntado + ' ' + parcial).trim();
+        crecerEntrada();
         clearTimeout(enviar);
         enviar = setTimeout(mandar, PAUSA);  // si sigue callado 2,5 s, se envia
       };
@@ -1182,6 +1202,7 @@
       fallos = 0;
       juntado = '';
       entrada.value = '';
+      crecerEntrada();
       entrada.placeholder = OYENDO;
       escuchando(true);
       setTimeout(() => { if (encendido && !oido) { try { arrancar(); } catch (e) { apagar(); } } }, 250);

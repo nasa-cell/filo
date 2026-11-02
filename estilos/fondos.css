@@ -1,7 +1,7 @@
 /* ---------- barra de abajo: saludar, escribir, foto, camara, microfono y enviar ---------- */
 body { grid-template-rows: auto minmax(0, 1fr) auto; grid-template-columns: minmax(0, 1fr); }
 .charla { flex-wrap: wrap; width: min(820px, calc(100% - 20px)); margin: 6px auto 12px; padding: 8px; align-items: center; background: rgba(255, 255, 255, .88); border: 2px solid #cfe0ff; border-radius: 20px; box-shadow: 0 8px 24px rgba(0, 0, 0, .25); backdrop-filter: blur(6px); }
-.charla input { border-color: transparent; background: #f2f7ff; }
+.charla #mensaje { border-color: transparent; background: #f2f7ff; }
 .charla.soltar { border-color: var(--dorado); box-shadow: 0 0 0 4px rgba(245, 179, 1, .45); }
 .boton.suave { background: #fff; color: var(--azul); border: 2px solid var(--azul); box-shadow: none; }
 .boton.suave:hover { background: #eaf1ff; }
@@ -10,7 +10,7 @@ body { grid-template-rows: auto minmax(0, 1fr) auto; grid-template-columns: minm
 #b-micro[aria-pressed="true"] { background: #e2283f; border-color: #e2283f; animation: escucha 1s ease-in-out infinite; }
 #b-camara[aria-pressed="true"] { background: var(--dorado); border-color: var(--dorado); }
 @keyframes escucha { 50% { box-shadow: 0 0 0 8px rgba(226, 40, 63, .25); } }
-.boton:focus-visible, .vista:focus-visible, .charla input:focus-visible { outline: 3px solid var(--dorado); outline-offset: 2px; }
+.boton:focus-visible, .vista:focus-visible, .charla #mensaje:focus-visible { outline: 3px solid var(--dorado); outline-offset: 2px; }
 
 /* foto adjunta: miniatura con una X para quitarla */
 .adjunto { order: -1; flex-basis: 100%; display: flex; align-items: center; gap: 10px; font-weight: 800; color: var(--azul-osc); font-size: .9rem; }
@@ -26,7 +26,7 @@ body { grid-template-rows: auto minmax(0, 1fr) auto; grid-template-columns: minm
   .vista { height: 30px; padding: 0 9px; font-size: .82rem; }
   .charla { display: grid; gap: 6px; grid-template-columns: 1fr auto auto auto auto; grid-template-areas: "foto foto foto foto foto" "texto texto texto texto texto" "saludar adjuntar camara micro enviar"; }
   .adjunto { grid-area: foto; }
-  .charla input { grid-area: texto; width: 100%; }
+  .charla #mensaje { grid-area: texto; width: 100%; }
   #b-hablar { grid-area: saludar; }
   #b-adjuntar { grid-area: adjuntar; }
   #b-camara { grid-area: camara; }
@@ -337,3 +337,5 @@ body > .grande { position: fixed; inset: 0; z-index: 8; background: rgba(5, 15, 
   .nerd .resultados-botones { padding: 8px 10px; background: linear-gradient(rgba(255, 255, 255, 0), #fff 25%); }
   .nerd .resultados-botones .mq-btn { padding: 7px 16px; }
 }
+/* el cuadro de escribir crece hacia arriba hasta 4 lineas (opcion A); los botones quedan abajo, alineados */
+@media (min-width: 701px) { .charla { align-items: flex-end; } }

@@ -407,11 +407,173 @@ def es_su_cumple(memo, hora):
     return False
 
 
+# ---------- «olvida…»: Filo borra de verdad lo del tema que el Maestro pide ----------
+OLVIDAR = re.compile(r'\b(olv[ií]d(a|ate|alo|ala|alos|alas|ate de|a eso)|borra (eso )?de tu memoria|ya no (lo )?recuerdes|'
+                     r'no (lo )?recuerdes m[aá]s)\b', re.I)
+PEDIR_OLVIDO = (
+    'El Maestro te pide que OLVIDES algo. Te paso su mensaje (y, si hay, lo que pidió olvidar justo antes) y tu '
+    'memoria numerada. borrar: los códigos de TODO lo que tenga que ver con lo que pide olvidar (datos, pendientes, '
+    'vivencias, gustos, lo que pensaste, mensajes); nada más. Si no queda claro qué tema es, o puede ser más de uno, '
+    'NO borres nada: deja borrar vacío y en duda pon una pregunta corta para saber cuál (forma: «¿Olvido lo de X o '
+    'lo de Y?»). Si dice «eso» o «lo de antes», míralo en la conversación reciente; si aun así no se sabe, pregunta. '
+    'reescribir: si una cosa MEZCLA el tema con otras cosas (o es un texto largo R1, R2, R3), no la borres: pon su '
+    'código con el MISMO texto pero sin nada de ese tema. respuesta: lo que dices en voz alta, hablándole de tú, máximo 40 palabras, sin emojis: '
+    'qué olvidaste (sin repetir los detalles) o la pregunta de duda; si no tenías nada de eso guardado, dilo. '
+    'Si antes preguntaste algo y lo que dice ahora NO responde tu pregunta (cambió de tema), deja borrar, duda y '
+    'respuesta vacíos. '
+    'tema: el tema que vas a olvidar en pocas palabras, sacado del mensaje o de la conversación reciente; VACÍO si '
+    'no sabes de qué habla (entonces pregunta en duda). palabras: 1 a 4 palabras clave propias de ese tema que '
+    'aparecen en tu memoria (nombres, cosas; nunca palabras comunes como Maestro, quiere, le, gusta). '
+    'Responde SOLO JSON: {"tema": "...", "palabras": ["..."], "borrar": ["D1"], "reescribir": {"R1": "..."}, '
+    '"duda": "", "respuesta": "...", "emocion": "normal"}'
+)
+
+
+def _sin_tildes(texto):
+    return str(texto).translate(str.maketrans('áéíóúüÁÉÍÓÚÜ', 'aeiouuAEIOUU'))
+
+
+def _memoria_numerada(memo):
+    """Todo lo que Filo recuerda, con un codigo por cosa (para que la IA elija que borrar)."""
+    cosas = {}
+    for letra, campo in (('D', 'datos'), ('P', 'pendientes'), ('V', 'vivencias')):
+        for i, x in enumerate(memo.get(campo) or []):
+            cosas[f'{letra}{i + 1}'] = (campo, i, x.get('texto', '') if isinstance(x, dict) else str(x))
+    for i, g in enumerate(list(memo.get('gustos') or {})):
+        cosas[f'G{i + 1}'] = ('gustos', g, g)
+    for i, t in enumerate((memo.get('pensado') or {}).get('puntos') or []):
+        cosas[f'T{i + 1}'] = ('pensado', i, t)
+    for i, t in enumerate(memo.get('ultimos_mensajes') or []):
+        cosas[f'M{i + 1}'] = ('ultimos_mensajes', i, t)
+    for codigo, campo in (('R1', 'resumen'), ('R2', 'forma_maestro'), ('R3', 'como_soy')):
+        if memo.get(campo):
+            cosas[codigo] = (campo, None, memo[campo])
+    return cosas
+
+
+def olvidar(mensaje, historial=()):
+    """Borra de la memoria lo del tema que pide olvidar. Si no sabe cual es, pregunta y espera la respuesta."""
+    memo = memoria.leer(memoria.MAESTRO)
+    antes = memo.get('olvido_pendiente') or {}
+    pedido = mensaje
+    if antes.get('cuando', 0) > time.time() - 300 and antes.get('mensaje'):
+        pedido = 'Antes pidió: «' + antes['mensaje'] + '». Tú preguntaste: «' + antes.get('duda', '') + '». Ahora dice: «' + mensaje + '»'
+    resto = re.sub(r'\b(filo|maestro|por favor|porfa|ya|eso|esto|lo|la|las|los|de|del|todo|tu|tú|memoria|y|no|me|olvides|olvida|olvídalo|olvidalo|olvídate|olvidate|borra|recuerdes|más|mas)\b', ' ',
+                   mensaje.lower())
+    if pedido == mensaje and not historial and len(re.sub(r'[^a-záéíóúñ]', '', resto)) < 3:
+        # dijo solo «olvídalo» y no hay de qué hablaba: pregunta en vez de adivinar
+        duda = '¿Qué quieres que olvide, Maestro? Dime el tema.'
+        fresca = memoria.leer(memoria.MAESTRO)
+        fresca['olvido_pendiente'] = {'mensaje': mensaje[:300], 'duda': duda, 'cuando': time.time()}
+        memoria.guardar(memoria.MAESTRO, fresca)
+        print('olvidar: no dijo el tema, pregunta antes')
+        return {'respuesta': duda, 'emocion': 'normal', 'olvido': 0}
+    cosas = _memoria_numerada(memo)
+    lista = '\n'.join(f'{c}: {t[2][:220]}' for c, t in cosas.items()) or '(tu memoria está vacía)'
+    charla = '\n'.join(('Maestro: ' if h.get('rol') == 'usuario' else 'Filo: ') + str(h.get('texto', ''))[:200]
+                       for h in list(historial)[-6:] if isinstance(h, dict))
+    salida = pedir_json(PEDIR_OLVIDO, ('Conversación reciente:\n' + charla + '\n\n' if charla else '')
+                        + 'Mensaje del Maestro: ' + pedido[:600] + '\n\nTu memoria:\n' + lista,
+                        sin_groq=True, max_tokens=2500)
+    fresca = memoria.leer(memoria.MAESTRO)
+    duda = str(salida.get('duda') or '').strip()
+    respuesta = str(salida.get('respuesta') or '').strip()
+    tema = str(salida.get('tema') or '').strip()
+    if not duda and not tema and (salida.get('borrar') or salida.get('reescribir') or respuesta.endswith('?')):
+        # no sabe de qué tema habla: no borra nada a ciegas, pregunta
+        duda = respuesta if respuesta.endswith('?') else '¿Qué quieres que olvide, Maestro? Dime el tema.'
+        respuesta = duda
+    if antes and pedido != mensaje and not OLVIDAR.search(mensaje) and not salida.get('borrar') and not salida.get('reescribir')             and not salida.get('palabras') and not str(salida.get('duda') or '').strip():
+        fresca.pop('olvido_pendiente', None)  # cambio de tema: se conversa normal
+        memoria.guardar(memoria.MAESTRO, fresca)
+        return None
+    borrar = [c for c in salida.get('borrar') or [] if c in cosas] if not duda else []
+    nuevos = salida.get('reescribir') if isinstance(salida.get('reescribir'), dict) and not duda else {}
+    nuevos = {c: str(t or '').strip() for c, t in nuevos.items() if c in cosas and c not in borrar and str(t or '').strip()}
+    # barrido por palabras clave: lo que la IA se salto y todavia nombra el tema tambien se olvida
+    claves = [_sin_tildes(str(x)).lower().strip() for x in salida.get('palabras') or [] if len(str(x).strip()) >= 4][:4]
+    claves = [c for c in claves if c not in ('maestro', 'quiere', 'gusta', 'filo', 'cancion', 'video')]
+    if claves and not duda:
+        tiene = lambda t: any(c in _sin_tildes(t).lower() for c in claves)
+        for codigo, (campo, donde, texto) in cosas.items():
+            if codigo in borrar or codigo in nuevos or not tiene(texto):
+                continue
+            if donde is None or campo == 'vivencias':
+                # texto mezclado: se quitan solo las partes (frases o «;») que nombran el tema
+                partes = re.split(r'(?<=[.;])\s+', texto)
+                prefijo = ''
+                if campo == 'vivencias' and ':' in texto:
+                    prefijo, resto = texto.split(':', 1)
+                    partes = re.split(r'(?<=[.;])\s+', resto.strip())
+                    prefijo += ': '
+                quedan = [x for x in partes if x and not tiene(x)]
+                if quedan:
+                    nuevos[codigo] = (prefijo + ' '.join(quedan)).strip()
+                    continue
+            borrar.append(codigo)
+    # primero se reescriben las cosas mezcladas (sin el tema) y despues se borra lo demas
+    for codigo, texto in nuevos.items():
+        campo, donde, _ = cosas[codigo]
+        if donde is None:
+            fresca[campo] = texto[:1500]
+        elif campo == 'gustos':
+            continue
+        elif campo == 'pensado':
+            if fresca.get('pensado') and donde < len(fresca['pensado'].get('puntos') or []):
+                fresca['pensado']['puntos'][donde] = texto[:200]
+        elif donde < len(fresca.get(campo) or []):
+            if isinstance(fresca[campo][donde], dict):
+                fresca[campo][donde]['texto'] = texto[:300]
+            else:
+                fresca[campo][donde] = texto[:300]
+    quitar = {}
+    for codigo in borrar:
+        campo, donde, _ = cosas[codigo]
+        quitar.setdefault(campo, set()).add(donde)
+    for campo, donde in quitar.items():
+        if campo == 'gustos':
+            for g in donde:
+                (fresca.get('gustos') or {}).pop(g, None)
+        elif campo == 'pensado':
+            puntos = [t for i, t in enumerate((fresca.get('pensado') or {}).get('puntos') or []) if i not in donde]
+            if puntos:
+                fresca['pensado']['puntos'] = puntos
+            else:
+                fresca.pop('pensado', None)
+        else:
+            fresca[campo] = [x for i, x in enumerate(fresca.get(campo) or []) if i not in donde]
+    if duda:
+        fresca['olvido_pendiente'] = {'mensaje': mensaje[:300], 'duda': duda[:200], 'cuando': time.time()}
+    else:
+        fresca.pop('olvido_pendiente', None)
+    memoria.guardar(memoria.MAESTRO, fresca)
+    print(f'olvidar: {len(borrar)} cosas borradas, {len(nuevos)} textos reescritos' + (', pregunta antes' if duda else ''))
+    emocion = salida.get('emocion') if salida.get('emocion') in EMOCIONES else 'normal'
+    respuesta = respuesta or duda or 'Listo, Maestro, ya lo olvidé.'
+    return {'respuesta': respuesta, 'emocion': emocion, 'olvido': len(borrar) + len(nuevos)}
+
+
+def quiere_olvidar(mensaje, memo):
+    """Pide olvidar algo, o contesta la pregunta que Filo hizo para saber que olvidar."""
+    if OLVIDAR.search(mensaje):
+        return True
+    antes = memo.get('olvido_pendiente') or {}
+    return antes.get('cuando', 0) > time.time() - 300
+
+
 def hablar(datos):
     """Conversa con memoria del Maestro: recuerda, tiene animo que dura y luego aprende del mensaje."""
     id_maestro = memoria.MAESTRO  # Filo es de un solo Maestro: la misma memoria en el PC, el celular y la nube
     mensaje = str(datos.get('mensaje', ''))
     memo = memoria.leer(id_maestro)
+    if not datos.get('sin_accion') and not datos.get('imagen') and quiere_olvidar(mensaje, memo):
+        try:
+            olvido = olvidar(mensaje, datos.get('historial') or [])  # no se aprende nada de este mensaje: es para borrar
+            if olvido:
+                return olvido
+        except Exception as e:
+            print('olvidar fallo:', str(e)[:150])
+            return {'respuesta': 'Uy, Maestro, no pude borrarlo ahora. ¿Me lo pides otra vez?', 'emocion': 'pena'}
     if not datos.get('sin_accion'):
         if not memo.get('conocidos_desde'):
             memo['conocidos_desde'] = time.time()  # desde hoy cuentan los dias juntos

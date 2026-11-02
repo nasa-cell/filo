@@ -4,8 +4,8 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Filo</title>
-<link rel="stylesheet" href="estilos/estilos.css?v=5">
-<link rel="stylesheet" href="estilos/fondos.css?v=7">
+<link rel="stylesheet" href="estilos/estilos.css?v=6">
+<link rel="stylesheet" href="estilos/fondos.css?v=8">
 </head>
 <body data-estilo="A">
 <div class="fondo" id="fondo" aria-hidden="true"></div>
@@ -35,7 +35,7 @@
 
 <form class="charla" id="charla" autocomplete="off">
   <button class="boton suave" id="b-hablar" type="button">💬 Saludar</button>
-  <input id="mensaje" type="text" maxlength="600" placeholder="Escríbele algo a Filo…" aria-label="Mensaje para Filo">
+  <textarea id="mensaje" rows="1" maxlength="600" placeholder="Escríbele algo a Filo…" aria-label="Mensaje para Filo" enterkeyhint="send"></textarea>
   <div class="adjunto" id="adjunto" hidden><img id="adjunto-img" alt="Foto para Filo"><span>Filo verá esta foto</span><button type="button" id="adjunto-quitar">✕ Quitar</button></div>
   <input id="archivo" type="file" accept="image/*" hidden>
   <button class="boton redondo" id="b-adjuntar" type="button" aria-label="Mostrarle una foto" title="Mostrarle una foto (también puedes arrastrarla o pegarla)">📎</button>
@@ -50,7 +50,7 @@
 <script src="codigo/acciones.js?v=6"></script>
 <script src="codigo/acceso.js?v=5"></script>
   <script src="codigo/frases-filo.js?v=5"></script>
-<script src="codigo/conversacion.js?v=7"></script>
-<script src="codigo/separar.js?v=1"></script>
+<script src="codigo/conversacion.js?v=8"></script>
+<script src="codigo/separar.js?v=2"></script>
 </body>
 </html>
