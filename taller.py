@@ -9,6 +9,7 @@
   Todo queda en Cloudinary (archivos) y Neon (listas): si Render se apaga, al despertar sigue donde quedo.
 """
 import json
+import os
 import random
 import re
 import threading
@@ -65,6 +66,9 @@ def todas(memo):
 
 
 def _buscar(memo, id_):
+    mezcla = _ropa(memo).get('mezcla')
+    if mezcla and mezcla.get('id') == id_:
+        return mezcla
     return next((r for r in todas(memo) if r['id'] == id_), None) or MODOS.get(id_)
 
 
@@ -148,28 +152,331 @@ def ropa_frase_dicha(_datos=None):
     return {'ok': True}
 
 
+# ---------- pedidos de ropa del Maestro ----------
+# «ponte ropa de primavera», «vístete de conejo», «hazte otro gorro», «crea tu outfit nuevo», «orejas cafés»...
+# Primero se entiende el pedido (que parte, que tema, que colores) y luego: si ya tiene algo asi, se lo pone al
+# instante; si no, o si pidio crear, la pagina muestra el aviso con barra y llama a /ropa-crear.
+COLORES = {
+    'cafe': '#8b5a2b', 'marron': '#8b5a2b', 'chocolate': '#5c3a1e', 'rojo': '#d62f3a', 'roja': '#d62f3a',
+    'azul': '#2f5fd0', 'celeste': '#7cc4f2', 'rosado': '#f58fb5', 'rosada': '#f58fb5', 'rosa': '#f58fb5',
+    'fucsia': '#e0338f', 'morado': '#8a4fc9', 'morada': '#8a4fc9', 'lila': '#b79be6', 'violeta': '#8a4fc9',
+    'verde': '#3aa35b', 'amarillo': '#f4cf3a', 'amarilla': '#f4cf3a', 'naranja': '#f08a2e', 'anaranjado': '#f08a2e',
+    'negro': '#2b2b30', 'negra': '#2b2b30', 'blanco': '#f7f7f7', 'blanca': '#f7f7f7', 'gris': '#9a9aa5',
+    'dorado': '#e8b93a', 'dorada': '#e8b93a', 'plateado': '#c9ced6', 'plateada': '#c9ced6', 'turquesa': '#2ec4b6',
+    'beige': '#e8d5b5', 'crema': '#f6ead2', 'vino': '#7d1f35', 'guinda': '#7d1f35',
+}
+ANIMALES = {'conejo': 'conejo', 'conejito': 'conejo', 'coneja': 'conejo', 'conejita': 'conejo', 'gato': 'gato',
+            'gatito': 'gato', 'gata': 'gato', 'gatita': 'gato', 'michi': 'gato', 'neko': 'gato', 'zorro': 'zorro',
+            'zorrito': 'zorro', 'zorra': 'zorro', 'zorrita': 'zorro', 'kitsune': 'zorro', 'oso': 'oso', 'osito': 'oso',
+            'osa': 'oso', 'osita': 'oso', 'panda': 'oso'}
+# temas que no son nombre ni etiqueta de ningun atuendo, pero tienen parecidos
+SINONIMOS = {'naturaleza': ['bosque', 'campo', 'flores', 'animales'], 'flor': ['flores'], 'florcita': ['flores'],
+             'frio': ['invierno'], 'calor': ['verano'], 'estrella': ['estrellas'], 'espacio': ['estrellas', 'noche'],
+             'japones': ['japon'], 'japonesa': ['japon'], 'peruana': ['peru'], 'peruano': ['peru'],
+             'fruta': ['fruta'], 'mariposas': ['animales', 'primavera'], 'magia': ['fantasia'], 'magica': ['fantasia'],
+             'escuela': ['colegio'], 'comoda': ['comodo'], 'deportiva': ['deporte']}
+VERBOS = re.compile(r'ponte|pontela|pontelo|ponerte|pongas|pon|vistete|vestirte|vistas|disfrazate|disfrazarte|usa|usar|'
+                    r'uses|lleva|llevar|lleves|cambiate|cambiarte|cambies|cambia|cambiar|quiero|verte|puedes|podrias|'
+                    r'que|te|crea|create|crear|crees|creas|haz|hazte|hacer|hagas|hacerte|hace|disena|disenate|disenar|'
+                    r'disenes|inventa|inventate|inventar|inventes|fabrica|fabricate|cose|cosete|arma|armate|prueba|'
+                    r'pruebate|vestida|vestido|vestir|ver|gustaria|me|seria|lindo')
+CREAR = re.compile(r'\b(crea|create|crear|crees|creas|haz|hazte|hacer|hagas|hacerte|disena|disenate|disenar|disenes|'
+                   r'inventa|inventate|inventar|inventes|fabrica|fabricate|cose|cosete|arma|armate|nuev[oa]s?)\b')
+ROPA = re.compile(r'\b(ropa|ropita|atuendo|outfit|traje|disfraz|vestido|look|conjunto|uniforme|gorro|gorrito|'
+                  r'sombrero|adorno|accesorio|orejas?|orejitas?|diadema|vincha|tiara|corona|lazo|mono|vestirte|vistete|'
+                  r'disfrazate|cambiate|cambiarte)\b')
+CABEZA = re.compile(r'\b(gorro|gorrito|sombrero|adorno|accesorio|orejas?|orejitas?|diadema|vincha|tiara|corona|lazo|'
+                    r'cabeza|pelo|cabello|arriba)\b')
+CUERPO = re.compile(r'\b(vestido|tela|falda|abajo|cuerpo)\b')
+COMPLETO = re.compile(r'\b(complet[oa]|tod[oa]|enter[oa]|de pies a cabeza)\b')
+PRENDA = re.compile(r'\b(ropa|ropita|atuendo|outfit|traje|disfraz|conjunto|look|uniforme)\b')
+RELLENO = set(('ropa ropita atuendo atuendos outfit traje disfraz vestido look conjunto uniforme gorro gorrito '
+               'sombrero adorno accesorio oreja orejas orejita orejitas diadema vincha tiara corona lazo mono tela '
+               'falda cabeza pelo cabello cuerpo arriba abajo solo solamente unicamente nada mas completo completa '
+               'todo toda entero entera filo maestro favor por porfa porfis plis please un una unos unas el la los las '
+               'lo de del al a con y o en tu tus mi mis su sus otro otra otros otras nuevo nueva nuevos nuevas distinto '
+               'distinta algo uno ya ahora hoy bonito bonita lindo linda tipo estilo me tambien color colores pies '
+               'para ti tuyo tuya propio propia se esta este eso esa').split())
+
+
+def _palabras(t):
+    return re.findall(r'[a-z0-9]+', t)
+
+
+def _singular(w):
+    if len(w) > 4 and w.endswith('es') and w[:-2] in COLORES:
+        return w[:-2]
+    return w[:-1] if len(w) > 3 and w.endswith('s') else w
+
+
+def _color(w):
+    return COLORES.get(w) or COLORES.get(_singular(w))
+
+
+def entender(pedido):
+    """Lo que pide el Maestro: crear o no, parte (todo/cabeza/cuerpo), tema, animal y colores por parte."""
+    t = re.sub(r'\bmono\b', 'mono', _sin_tildes(pedido))  # «moño» queda «mono» sin tildes
+    palabras = _palabras(t)
+    colores = {}
+    for i, w in enumerate(palabras):
+        c = _color(w)
+        if not c:
+            continue
+        cerca = ' '.join(palabras[max(0, i - 4):i])  # «orejas cafés», «vestido rojo», «moño azul»
+        ultima = next((p for p in reversed(palabras[max(0, i - 4):i]) if CABEZA.match(p) or CUERPO.match(p)
+                       or p == 'mono' or re.match(r'(lunar|flor|estrella|corazon|raya|cuadro|dibujo)', p)), '')
+        if ultima == 'mono':
+            colores['mono'] = c
+        elif CABEZA.match(ultima):
+            colores.setdefault('cabeza', c)
+        elif re.match(r'(lunar|flor|estrella|corazon|raya|cuadro|dibujo)', ultima):
+            colores.setdefault('tela', c)
+        elif ultima or not cerca or not CABEZA.search(t):
+            colores.setdefault('cuerpo', c)
+        else:
+            colores.setdefault('cabeza', c)
+    solo = re.search(r'\b(solo|solamente|nada mas|unicamente)\b', t)
+    if COMPLETO.search(t):
+        parte = 'todo'
+    elif CABEZA.search(t) and not CUERPO.search(t) and not PRENDA.search(t):
+        parte = 'cabeza'
+    elif CUERPO.search(t) and not CABEZA.search(t) and (solo or not PRENDA.search(t)):
+        parte = 'cuerpo'
+    else:
+        parte = 'todo'
+    tema = [w for w in palabras if w not in RELLENO and not VERBOS.fullmatch(w) and not _color(w) and not w.isdigit()]
+    animal = next((ANIMALES[w] for w in palabras if w in ANIMALES), None)
+    return {'crear': bool(CREAR.search(t)), 'parte': parte, 'tema': ' '.join(tema[:4]), 'animal': animal,
+            'colores': colores,
+            'es_ropa': bool(ROPA.search(t) or animal or CABEZA.search(t) or CUERPO.search(t)
+                            or re.search(r'\b(ponte|pontela|ponerte|pongas|vistete)\s+(algo\s+)?de\b', t))}
+
+
+def _con_palabra(nombre, texto):
+    return re.search(r'(?<![a-z])' + re.escape(nombre) + r'(?![a-z])', texto) is not None
+
+
+def _parecido(lista, tema):
+    """Atuendo que ya tiene con ese nombre o ese tema (etiquetas y parecidos). None si no hay."""
+    if not tema:
+        return None
+    for r in sorted(lista, key=lambda r: -len(r['nombre'])):
+        if _con_palabra(_sin_tildes(r['nombre']), tema) or _con_palabra(r['id'].replace('_', ' '), tema):
+            return r
+    buscadas = set()
+    for w in tema.split():
+        buscadas |= {w, _singular(w), *SINONIMOS.get(w, []), *SINONIMOS.get(_singular(w), [])}
+    mejores = []
+    for r in lista:
+        texto = set(_sin_tildes(' '.join(r.get('etiquetas') or []) + ' ' + r['nombre']).split())
+        n = len(buscadas & texto)
+        if n:
+            mejores.append((n, random.random(), r))
+    return max(mejores, key=lambda m: m[:2])[2] if mejores else None
+
+
+def _ponerse(memo, receta, mezcla=None):
+    ropa = _ropa(memo)
+    ropa.update(fecha=_hoy(), hoy=(mezcla or receta)['id'], frase_dicha=True)
+    if mezcla:
+        ropa['mezcla'] = mezcla
+    if receta['id'] not in ropa['usados']:
+        ropa['usados'].append(receta['id'])
+    _guardar_ropa(ropa)
+
+
+def _mezclar(cuerpo, cabeza, nombre, frase, emocion='feliz'):
+    """Vestido de un atuendo con el adorno de otro (sin pintar nada: se juntan sus capas)."""
+    m = {k: v for k, v in cuerpo.items() if k not in ('id', 'voz', 'adorno', 'capas')}
+    m.update(id='mezcla-' + str(int(time.time())), nombre=nombre, frase=frase, emocion=emocion,
+             adorno=cabeza.get('adorno') or {'tipo': 'ninguno'}, capas=dict(cuerpo.get('capas') or {}))
+    m['capas'].pop('cabeza', None)
+    if (cabeza.get('capas') or {}).get('cabeza'):
+        m['capas']['cabeza'] = cabeza['capas']['cabeza']
+    return m
+
+
 def cambiar(datos):
-    """«cámbiate» = otro atuendo; «ponte el kimono» = ese. Devuelve la receta o {'no_encontre': True}."""
-    pedido = _sin_tildes(str(datos.get('pedido') or ''))
+    """Pedido de ropa. Devuelve la receta puesta, {'crear': {...}} si hay que hacerla (la pagina muestra el aviso y
+    llama a /ropa-crear) o {'no_encontre': True} si no era un pedido de ropa."""
+    pedido = str(datos.get('pedido') or '')
+    q = entender(pedido)
     memo = memoria.leer(MAESTRO)
     ropa = _ropa(memo)
     lista = todas(memo)
-    elegido = None
-    for r in sorted(lista, key=lambda r: -len(r['nombre'])):
-        nombre = _sin_tildes(r['nombre'])
-        if nombre in pedido or r['id'].replace('_', ' ') in pedido:
-            elegido = r
-            break
-    if not elegido:
-        if re.search(r'\b(ponte|vistete|usa|lleva)\b', pedido) and not re.search(r'\b(otr[ao]|cambia|nuev[ao]|distint[ao])\b', pedido):
-            return {'no_encontre': True}
-        otros = [r for r in lista if r['id'] != ropa['hoy'] and r['id'] not in ropa['usados'][-20:]] or [r for r in lista if r['id'] != ropa['hoy']]
+    actual = _buscar(memo, ropa['hoy'])
+    if not q['es_ropa'] and not _parecido(lista, q['tema']):
+        return {'no_encontre': True}  # «ponte feliz», «usa la cámara»: no era ropa
+    crear = {'crear': dict(q, pedido=pedido[:200]), 'segundos': 15}
+    if q['crear'] or q['colores'] or (q['animal'] and q['parte'] != 'cuerpo'):
+        return crear  # lo pidio nuevo, con colores o con orejas: se hace a medida
+    elegido = _parecido(lista, q['tema'])
+    if q['tema'] and not elegido:
+        return crear  # no tiene nada asi: se lo hace
+    if not elegido:  # «cámbiate», «otro gorro», «otro vestido»: uno que no use hace poco
+        otros = [r for r in lista if r['id'] != ropa['hoy'] and r['id'] not in ropa['usados'][-20:]] or \
+                [r for r in lista if r['id'] != ropa['hoy']]
+        if q['parte'] == 'cabeza' and actual:
+            tipo = (actual.get('adorno') or {}).get('tipo')
+            otros = [r for r in otros if (r.get('adorno') or {}).get('tipo') not in (tipo, 'ninguno', None)] or otros
         elegido = max(otros, key=lambda r: _puntaje(r, memo))
-    ropa.update(fecha=_hoy(), hoy=elegido['id'], frase_dicha=True)
-    if elegido['id'] not in ropa['usados']:
-        ropa['usados'].append(elegido['id'])
-    _guardar_ropa(ropa)
+    if q['parte'] == 'cabeza' and actual and actual['id'] != elegido['id']:
+        m = _mezclar(actual, elegido, actual['nombre'], '¡Me cambié el adorno de la cabeza! ¿Te gusta así, Maestro?')
+        _ponerse(memo, elegido, m)
+        return publica(m)
+    if q['parte'] == 'cuerpo' and actual and actual['id'] != elegido['id']:
+        m = _mezclar(elegido, actual, elegido['nombre'], '¡Vestido nuevo con el mismo adorno! ¿Combina, Maestro?')
+        _ponerse(memo, elegido, m)
+        return publica(m)
+    ropa = _ropa(memo)
+    ropa.pop('mezcla', None)
+    _ponerse(memo, elegido)
     return publica(elegido)
+
+
+CREAR_PEDIDO = (
+    ' AHORA el Maestro te pidió esta ropa: «{pedido}». Hazla de ESE tema{parte}. {colores}Si pide un animal con '
+    'orejas (conejo, gato, zorro, oso), usa el adorno orejas_<animal>. El nombre dice el tema que pidió.'
+)
+
+
+def _subir(datos, nombre):
+    """Sube la capa a Cloudinary; sin nube (o en pruebas con FILO_ROPA_LOCAL) la deja en imagenes/ropa/creados."""
+    if acciones.credenciales_nube() and not os.environ.get('FILO_ROPA_LOCAL'):
+        return acciones.subir_archivo(datos, 'filo-ropa', nombre)
+    carpeta = os.path.join(vestuario.CARPETA, 'imagenes', 'ropa', 'creados')
+    os.makedirs(carpeta, exist_ok=True)
+    with open(os.path.join(carpeta, nombre + '.webp'), 'wb') as f:
+        f.write(datos)
+    return 'imagenes/ropa/creados/' + nombre + '.webp'
+
+
+def _separar_color(c, base, minimo):
+    """Si un color casi no se ve sobre el vestido, lo aclara u oscurece hasta que se note."""
+    rb = vestuario.rgb(base)
+    if vestuario.distancia(vestuario.rgb(c), rb) >= minimo:
+        return c
+    otro = vestuario.oscuro(rb, 0.45) if vestuario.luminancia(rb) > 128 else vestuario.claro(rb, 0.6)
+    return vestuario.hexa(otro)
+
+
+def _a_medida(receta, q, actual):
+    """Pone si o si lo que pidio el Maestro (colores, orejas, la parte que no cambia) sobre lo que propuso la IA."""
+    r = dict(receta) if isinstance(receta, dict) else {}
+    col = q.get('colores') or {}
+    if q.get('animal') and q['parte'] != 'cuerpo':
+        a = dict(r.get('adorno') or {})
+        propio = a.get('tipo') == 'orejas_' + q['animal'] and a.get('color')  # la IA ya eligio el color de las orejas
+        a['tipo'] = 'orejas_' + q['animal']
+        if not propio:
+            a.pop('color2', None)
+        a['color'] = col.get('cabeza') or propio or {'conejo': '#f7f7f7', 'gato': '#2b2b30',
+                                                             'zorro': '#f08a2e', 'oso': '#8b5a2b'}[q['animal']]
+        r['adorno'] = a
+    if col.get('cabeza'):
+        r['adorno'] = dict(r.get('adorno') or {'tipo': 'lazo'}, color=col['cabeza'])
+        if r['adorno'].get('tipo') in (None, 'ninguno'):
+            r['adorno']['tipo'] = 'lazo'
+    if col.get('cuerpo'):
+        r['base'] = col['cuerpo']
+    if col.get('mono'):
+        r['mono'] = col['mono']
+    if col.get('tela'):
+        r['tela'] = dict(r.get('tela') or {'tipo': 'lunares'}, color=col['tela'])
+        if r['tela'].get('tipo') == 'liso':
+            r['tela']['tipo'] = 'lunares'
+    if actual and q['parte'] == 'cabeza':  # el vestido se queda como esta
+        for k in ('base', 'mono', 'tela', 'extras'):
+            if actual.get(k) is not None:
+                r[k] = actual[k]
+    if actual and q['parte'] == 'cuerpo' and actual.get('adorno'):
+        r['adorno'] = actual['adorno']
+    if vestuario.COLOR.match(str(r.get('base'))):
+        if vestuario.COLOR.match(str(r.get('mono'))) and not col.get('mono'):
+            r['mono'] = _separar_color(r['mono'], r['base'], 75)
+        tela = r.get('tela')
+        if isinstance(tela, dict) and vestuario.COLOR.match(str(tela.get('color'))) and tela.get('tipo') != 'brillos':
+            r['tela'] = dict(tela, color=_separar_color(tela['color'], r['base'], 50))
+    return r
+
+
+def _sin_ia(q, actual, lista):
+    """Si la IA no responde: lo mas parecido que tiene, con las orejas y colores pedidos."""
+    base = _parecido(lista, q.get('tema') or '') or actual or random.choice(lista)
+    r = {k: v for k, v in base.items() if k not in ('id', 'voz', 'capas')}
+    nombre = (q.get('tema') or q.get('animal') or base['nombre'])[:22]
+    r.update(nombre=nombre + ' ' + str(int(time.time()) % 1000), emocion='timida',
+             frase='No me salió inventarlo entero, Maestro, pero me hice lo más parecido. ¿Te gusta?')
+    if col := q.get('colores'):
+        if col.get('mono') is None and col.get('cuerpo'):
+            r['mono'] = '#2f5fd0'
+    return r
+
+
+def crear_pedido(datos, pedir_json):
+    """Hace el atuendo que pidio el Maestro (IA + reglas + pintar + subir), se lo pone y lo guarda en su ropero."""
+    q = dict(datos.get('crear')) if isinstance(datos.get('crear'), dict) else entender(str(datos.get('pedido') or ''))
+    q['pedido'] = str(q.get('pedido') or datos.get('pedido') or '')[:200]
+    q['colores'] = {k: v for k, v in (q.get('colores') or {}).items() if k in ('cabeza', 'cuerpo', 'mono', 'tela')
+                    and isinstance(v, str) and vestuario.COLOR.match(v)}
+    if q.get('parte') not in ('todo', 'cabeza', 'cuerpo'):
+        q['parte'] = 'todo'
+    if q.get('animal') not in (None, *vestuario.OREJAS):
+        q['animal'] = None
+    memo = memoria.leer(MAESTRO)
+    ropa = _ropa(memo)
+    lista = todas(memo)
+    actual = _buscar(memo, ropa['hoy'])
+    usados = [r['nombre'] for r in lista] + [r['nombre'] for r in MODOS.values()]
+    pide = {'cabeza': ' (SOLO cambia el adorno de la cabeza; el vestido se queda igual)',
+            'cuerpo': ' (SOLO cambia el vestido; el adorno de la cabeza se queda igual)'}.get(q['parte'], '')
+    colores = ('Usa EXACTO estos colores que pidió: ' + json.dumps(q['colores']) + '. ') if q['colores'] else ''
+    tarea = CREAR_ATUENDO + CREAR_PEDIDO.format(pedido=q['pedido'] or q.get('tema') or 'algo nuevo, a tu gusto',
+                                                parte=pide, colores=colores)
+    texto = ('Atuendos que ya tienes (no repitas el nombre): ' + ', '.join(usados)
+             + '\nCatálogo: ' + json.dumps(vestuario.CATALOGO, ensure_ascii=False))
+    receta = None
+    for _ in range(2):  # si la IA se equivoca en una regla, se le da otra oportunidad
+        try:
+            receta = vestuario.validar(_a_medida(pedir_json(tarea, texto), q, actual), usados)
+            break
+        except Exception as e:
+            print('ropa a pedido:', str(e)[:150], flush=True)
+    sin_ia = receta is None
+    if sin_ia:
+        receta = vestuario.validar(_a_medida(_sin_ia(q, actual, lista), q, actual), usados)
+    receta['id'] = 'creado-' + str(int(time.time() * 1000))
+    capas_actual = (actual or {}).get('capas') or {}
+    if q['parte'] == 'cabeza' and capas_actual.get('cuerpo'):
+        partes = ('cabeza',)
+    elif q['parte'] == 'cuerpo' and capas_actual.get('cabeza') is not None and (actual or {}).get('adorno'):
+        partes = ('cuerpo',)
+    else:
+        partes = ('cuerpo', 'cabeza')
+    hecho = vestuario.pintar(receta, partes)
+    receta['capas'] = {}
+    for parte in ('cuerpo', 'cabeza'):
+        if parte in partes:
+            if hecho[parte] and hecho[parte][0]:
+                img, caja = hecho[parte]
+                receta['capas'][parte] = {'url': _subir(img, f"{receta['id']}-{parte}"), 'caja': caja}
+        elif capas_actual.get(parte):
+            receta['capas'][parte] = capas_actual[parte]
+    memo = memoria.leer(MAESTRO)
+    ropa = _ropa(memo)
+    ropa['creados'].append(receta)
+    if len(ropa['creados']) > CREADOS_MAX:
+        viejo = next((r for r in ropa['creados'] if r['id'] in ropa['usados'] and r['id'] != ropa['hoy']), None)
+        if viejo:
+            ropa['creados'].remove(viejo)
+    ropa.update(fecha=_hoy(), hoy=receta['id'], frase_dicha=True)
+    ropa.pop('mezcla', None)
+    ropa['usados'].append(receta['id'])
+    memo.setdefault('frases_pend', []).append({'texto': receta['frase'], 'emocion': receta['emocion'], 'atuendo': receta['id']})
+    memoria.guardar(MAESTRO, memo)
+    salida = publica(receta)
+    salida['sin_ia'] = sin_ia
+    return salida
 
 
 # ---------- frases nuevas ----------

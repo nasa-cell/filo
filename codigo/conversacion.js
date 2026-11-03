@@ -102,6 +102,8 @@
   // aviso de lo que esta haciendo Filo: Pensando… → Generando voz… → ¡Lista!
   function aviso(texto, tipo = '') {
     const caja = $('estado');
+    // mientras se hace la ropa ya hay un aviso (el azul con barra): el de la voz no se suma encima de Filo
+    if (texto && (tipo === 'voz' || tipo === 'lista') && !$('aviso-ropa').hidden) texto = '';
     caja.hidden = !texto;
     caja.textContent = texto;
     caja.dataset.tipo = tipo;
@@ -367,25 +369,94 @@
     fetch('/ropa-frase-dicha', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: '{}' }).catch(() => {});
     setTimeout(() => { if (audio.paused && !boton.disabled) decir(ropaDia.frase, ropaDia.emocion || 'feliz'); }, 600);
   }
-  async function cambiarRopa(pedido, original) {
+  // ---------- ropa que pide el Maestro: «ponte ropa de primavera», «hazte otro gorro», «orejas de conejo cafés» ----------
+  // El servidor entiende el pedido: si ya tiene algo asi se lo pone al instante; si no, lo crea (aviso azul con barra).
+  let sinRopa = false;  // el servidor dijo que no era ropa («ponte feliz»): esa vez se salta este paso
+  const precargar = (r) => Promise.all(Object.values((r && r.capas) || {}).map((c) => new Promise((ok) => {
+    const i = new Image(); i.onload = i.onerror = ok; i.src = c.url;
+  })));
+  async function ponerRopa(d) {
+    await precargar(d);  // asi no se ve a Filo a medio vestir
+    ropaDia = Object.assign({}, ropaDia, d);
+    anotarVoz(d);
+    estrenoPendiente = false;
+    if (modo !== 'normal') ponerModo('normal', false);
+    // lo que pidio se ve: sin gorros de ocasion (chef, pollito, fecha) encima
+    Object.assign(ocasion, { pedida: null, pedidaHasta: 0, chefHasta: 0, pollitoHasta: 0, sinFecha: true });
+    vestirse();
+    return decir(d.frase, d.emocion || 'feliz');
+  }
+  async function cambiarRopa(pedido) {
     callar();
     expresion('pensando', 4000);
     try {
       const d = await postJson('/ropa-cambiar', { pedido });
-      if (d.no_encontre) {
-        if (original) { saltarOrden = true; return preguntar(original, true); }  // no era ropa suya: lo piensa la IA
-        return decir(...sacar(FF.avisos.sinEsaRopa));
-      }
-      ropaDia = Object.assign({}, ropaDia, d);
-      anotarVoz(d);
-      estrenoPendiente = false;
-      if (modo !== 'normal') ponerModo('normal', false);
-      ocasion.pedidaHasta = 0;
-      vestirse();
-      return decir(d.frase, d.emocion || 'feliz');
+      if (d.no_encontre) { sinRopa = true; return preguntar(pedido, true); }  // no era ropa: sigue como mensaje normal
+      if (d.crear) return crearRopa(d);
+      return ponerRopa(d);
     } catch (e) {
       return decir(...sacar(FF.avisos.sinEsaRopa));
     }
+  }
+  // aviso azul arriba a la izquierda con barra de avance mientras se hace la ropa
+  let creandoRopa = false;
+  function avisoRopa(texto, segundos) {
+    const caja = $('aviso-ropa'), barra = caja.querySelector('i'), resto = caja.querySelector('small');
+    caja.querySelector('span').textContent = texto;
+    caja.dataset.estado = 'haciendo';
+    caja.hidden = false;
+    const inicio = Date.now(), total = segundos * 1000;
+    const paso = () => {
+      const f = (Date.now() - inicio) / total;
+      // avanza parejo hasta el 90 % y luego se acerca despacio (nunca llega sola al final)
+      barra.style.width = (f < 0.9 ? f * 100 : 90 + 9 * (1 - Math.exp(-(f - 0.9) * 3))).toFixed(1) + '%';
+      const falta = Math.max(1, Math.ceil((total - (Date.now() - inicio)) / 1000));
+      resto.textContent = f < 1 ? `unos ${falta} s` : 'casi lista…';
+    };
+    paso();
+    const reloj = setInterval(paso, 250);
+    const cerrar = (estado, ms) => {
+      clearInterval(reloj);
+      caja.dataset.estado = estado;
+      if (estado === 'lista') { barra.style.width = '100%'; resto.textContent = '¡lista!'; }
+      setTimeout(() => { caja.hidden = true; }, ms);
+    };
+    return { lista: () => cerrar('lista', 900), fallo: () => cerrar('fallo', 300) };
+  }
+  async function crearRopa(d) {
+    if (creandoRopa) return decir('¡Todavía estoy terminando la otra, Maestro! Espérame un ratito.', 'timida');
+    creandoRopa = true;
+    cerrarNube();
+    const c = d.crear || {};
+    const que = c.parte === 'cabeza' ? 'adorno' : c.parte === 'cuerpo' ? 'vestido' : 'ropa';
+    const tema = c.animal ? 'de ' + c.animal : c.tema ? 'de ' + c.tema : 'nuevo';
+    const barra = avisoRopa(`🧵 Haciendo ${que === 'adorno' ? 'mi adorno' : que === 'vestido' ? 'mi vestido' : 'mi ropa'} ${tema}`, d.segundos || 15);
+    decir('¡Espera, Maestro, me lo estoy haciendo!', 'emocionada');
+    try {
+      const r = await postJson('/ropa-crear', { crear: c });
+      await precargar(r);
+      barra.lista();
+      await esperar(400);
+      expresion('feliz', 2000);
+      await ponerRopa(r);
+    } catch (e) {
+      barra.fallo();
+      decir('¡Ay! No me salió la ropa, Maestro. ¿Me lo pides otra vez en un ratito?', 'pena');
+    } finally {
+      creandoRopa = false;
+    }
+  }
+  // ¿el mensaje pide ropa? (lo decide del todo el servidor; aqui solo se filtra lo que seguro no es)
+  function pideRopa(t) {
+    const s = t.normalize('NFD').replace(/[̀-ͯ]/g, '');
+    if (/\bmodo\b/.test(s) || /\b(ponte|pontela|pongas) a\b/.test(s)) return false;
+    if (/\b(dibuj\w*|pinta\w*|busca\w*|youtube|videos?|cancion\w*|musica)\b/.test(s)) return false;  // «haz un dibujo de un gato con gorro»
+    const vestir = /\b(ponte|pontela|pontelo|ponerte|pongas|vistete|vestirte|vistas|disfrazate|disfrazarte|cambiate|cambiarte|pruebate|probarte)\b/;
+    const crear = /\b(crea|create|crear|crees|haz|hazte|hacer|hagas|hacerte|disena|disenate|disenar|inventa|inventate|inventar|fabricate|cosete|armate)\b/;
+    const prenda = /\b(ropa|ropita|atuendo|outfit|traje|disfraz|vestido|look|conjunto|uniforme|gorro|gorrito|sombrero|adorno|accesorio|orejas?|orejitas?|diadema|vincha|tiara|corona|lazo|mono)\b/;
+    const cambio = /\b(cambia|cambiar|cambies|otr[oa]s?|nuev[oa]s?|distint[oa]s?|solo|de arriba)\b/;
+    return vestir.test(s) || (crear.test(s) && prenda.test(s)) || (prenda.test(s) && cambio.test(s))
+      || /\bcambia\w*\b.*\b(lo de arriba|lo de abajo|de la cabeza|del pelo)\b/.test(s);
   }
 
   // ---------- ropa segun la ocasion (codigo/ropa.js) ----------
@@ -630,6 +701,8 @@
 
   function ordenRapida(m) {
     const t = m.toLowerCase().trim().replace(/[.!¡¿?]+/g, '');
+    const conRopa = !sinRopa;
+    sinRopa = false;
     // modo YouTube (acepta como suene o se escriba: youtube, yotube, youtuber, yutub…)
     const modoYT = /\bmodo\s+(y[a-z]*t[a-z]*b[a-z]*|you ?tube\w*|m[uú]sica|dj)\b/;
     if (modoYT.test(t) || /^(filo,?\s*)?(youtube|yotube|youtuber)$/.test(t)) {
@@ -644,11 +717,6 @@
       return true;
     }
     if (modo !== 'normal' && /\bmodo normal\b|^(ya )?no m[aá]s (m[uú]sica|videos?|b[uú]squedas?)$/.test(t)) { ponerModo('normal', true); return true; }
-    // ropa del dia: «cámbiate», «ponte otra ropa», «otro atuendo»
-    if (/^(filo,?\s*)?(c[aá]mbiate( de ropa)?|cambia(te)? de ropa|ponte otra ropa|otra ropa|otro atuendo|ponte otro atuendo|quiero verte con otra ropa)(,? filo)?$/.test(t)) {
-      cambiarRopa(t);
-      return true;
-    }
     // «cuéntame más»: explica con detalle lo ultimo que busco o la pagina que leyo (sin volver a preguntar a la IA)
     if (detalleUltimo && /^(filo,?\s*)?((cu[eé]ntame|dime|expl[ií]ca(me)?|sigue) (m[aá]s|un poco m[aá]s)|m[aá]s detalles?|dame m[aá]s detalles?|y qu[eé] m[aá]s)(,? filo)?$/.test(t)) {
       contarMas(detalleUltimo);
@@ -661,7 +729,9 @@
       decir('¡Listo, Maestro! Ya me lo quité.', 'feliz');
       return true;
     }
-    if (/\b(ponte|p[oó]nte|v[ií]stete|usa|ll[eé]va|disfr[aá]zate|cambia(te)? (a|de))\b/.test(t)) {
+    // ropa de ocasion ya dibujada (gorro de Navidad, pijama, chef...), salvo que pida crear algo o un animal
+    const aMedida = /\b(crea|haz|hazte|dise[nñ]a|inventa|conej\w*|gat[oa]\w*|zorr\w*|os[oa]\w*|orejas?)\b/.test(t);
+    if (!aMedida && /\b(ponte|p[oó]nte|v[ií]stete|usa|ll[eé]va|disfr[aá]zate|cambia(te)? (a|de))\b/.test(t)) {
       const ROPAS = [
         ['navidad', /navide|navidad|santa|pap[aá] noel/, '¡Jo, jo, jo! ¡Ya tengo mi gorro de Navidad, Maestro! ¿Me veo bonita?'],
         ['bruja', /bruja|halloween/, '¡Ji, ji, ji! ¡Soy una brujita! ¡Dulce o truco, Maestro!'],
@@ -671,7 +741,7 @@
         ['chef', /chef|cociner|delantal/, '¡La chef Filo! ¿Me preparas carne, Maestro? ¡Digo… yo cocino!'],
         ['pollito', /pollito|filolial/, '¡Pío, pío! ¡Mira mi gorrito de pollito!'],
         ['audifonos', /aud[ií]fonos|cascos/, '¡Mis audífonos con orejitas! ¿Ponemos música?'],
-        ['fiesta', /fiesta|cumplea|gorrito/, '¡Es hora de la fiesta, Maestro!'],
+        ['fiesta', /fiesta|cumplea/, '¡Es hora de la fiesta, Maestro!'],
       ];
       const ropa = ROPAS.find(([, regla]) => regla.test(t));
       if (ropa) {
@@ -680,11 +750,11 @@
         decir(ropa[2], 'feliz');
         return true;
       }
-      // «ponte el kimono», «vístete de princesa»: uno de sus atuendos del dia (si no lo tiene, lo dice)
-      if (/^(filo,?\s*)?(ponte|p[oó]nte|v[ií]stete( de)?|usa|ll[eé]va) (el |la |tu |de |un |una )?[\wáéíóúñ ]{3,30}$/.test(t)) {
-        cambiarRopa(t, m);
-        return true;
-      }
+    }
+    // cualquier otro pedido de ropa: «ponte ropa de primavera», «hazte otro gorro», «orejas de conejo cafés»
+    if (conRopa && pideRopa(t)) {
+      cambiarRopa(m);
+      return true;
     }
     // «saluda», «preséntate», «¿quién eres?»: presentacion ya grabada, al instante
     const sinNombre = t.replace(/^(hola,?\s*)?(filo,?\s*)?/, '').replace(/,?\s*filo$/, '').trim();

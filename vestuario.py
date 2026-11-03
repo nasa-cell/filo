@@ -461,10 +461,68 @@ def a_mariposa(d, p, cx=706, cy=262, r=46):
     d.ellipse(((cx - r * 0.12) * K, (cy - r * 0.8) * K, (cx + r * 0.12) * K, (cy + r * 0.7) * K), fill=oscuro(color, 0.4))
 
 
+# ---------- orejas de animal: diadema fina sobre el pelo y dos orejas que salen de ella ----------
+# Cada forma se dibuja con la base en (0, 0) apuntando hacia arriba; luego se gira y se pone sobre la diadema.
+# La punta queda dentro de la imagen (y >= 4): arriba de la cabeza no hay mas lienzo.
+def _girar(pts, x0, y0, grados):
+    a = math.radians(grados)
+    c, s = math.cos(a), math.sin(a)
+    return [((x0 + x * c - y * s) * K, (y0 + x * s + y * c) * K) for x, y in pts]
+
+
+def _elipse(cx, cy, rx, ry, n=40):
+    return [(cx + rx * math.cos(2 * math.pi * i / n), cy + ry * math.sin(2 * math.pi * i / n)) for i in range(n)]
+
+
+OREJAS = {  # animal: (x de cada oreja, giro, forma de afuera, forma de adentro)
+    'conejo': ((428, 596), 16, _elipse(0, -60, 36, 66), _elipse(0, -56, 18, 46)),
+    'gato': ((410, 614), 24, [(-54, 18), (-10, -100), (54, 18)], [(-32, 6), (-10, -66), (32, 6)]),
+    'zorro': ((406, 618), 22, [(-58, 20), (-6, -118), (58, 20)], [(-34, 6), (-7, -80), (34, 6)]),
+    'oso': ((398, 626), 26, _elipse(0, -28, 46, 46), _elipse(0, -26, 25, 25)),
+}
+
+
+def _diadema_y(x):
+    """Altura de la diadema (la misma curva de la vincha) en esa x."""
+    dx = (x - 512) / 297
+    return 410 - 290 * math.sqrt(max(0.0, 1 - dx * dx))
+
+
+def _orejas(d, p, animal):
+    color = p['color'] + (255,)
+    adentro = p.get('color2', (255, 248, 240) if animal == 'zorro' else (255, 182, 200)) + (255,)
+    xs, giro, afuera, dentro = OREJAS[animal]
+    caja = (215 * K, 120 * K, 809 * K, 700 * K)
+    d.arc(caja, 205, 335, fill=oscuro(color), width=16 * K)
+    d.arc(caja, 206, 334, fill=color, width=11 * K)
+    for x, signo in zip(xs, (-1, 1)):
+        y = _diadema_y(x) + 4
+        d.polygon(_girar(afuera, x, y, giro * signo), fill=color, outline=oscuro(color), width=3 * K)
+        d.polygon(_girar(dentro, x, y, giro * signo), fill=adentro)
+
+
+def a_orejas_conejo(d, p):
+    _orejas(d, p, 'conejo')
+
+
+def a_orejas_gato(d, p):
+    _orejas(d, p, 'gato')
+
+
+def a_orejas_zorro(d, p):
+    _orejas(d, p, 'zorro')
+
+
+def a_orejas_oso(d, p):
+    _orejas(d, p, 'oso')
+
+
 ADORNOS = {'ninguno': None, 'flor': a_flor, 'sakura': a_sakura, 'girasol': a_girasol, 'margarita': a_margarita,
            'lazo': a_lazo, 'estrella': a_estrella, 'tiara': a_tiara, 'cofia': a_cofia, 'vincha': a_vincha,
            'orejeras': a_orejeras, 'hojas': a_hojas, 'pinzas': a_pinzas, 'lupa': a_lupa, 'broches': a_broches,
-           'corazon': a_corazon, 'luna': a_luna, 'mariposa': a_mariposa}
+           'corazon': a_corazon, 'luna': a_luna, 'mariposa': a_mariposa,
+           'orejas_conejo': a_orejas_conejo, 'orejas_gato': a_orejas_gato, 'orejas_zorro': a_orejas_zorro,
+           'orejas_oso': a_orejas_oso}
 
 # lo que se le explica a la IA cuando Filo inventa un atuendo
 CATALOGO = {
@@ -483,7 +541,11 @@ CATALOGO = {
                 'cofia': 'cofia de maid (color cinta)', 'vincha': 'vincha (color, o colores)',
                 'orejeras': 'orejeras (color, color2 pompones)', 'hojas': 'hojas (color)', 'pinzas': 'pinzas (color)',
                 'broches': 'broches (colores)', 'corazon': 'corazón (color)', 'luna': 'luna con estrella (color, color2)',
-                'mariposa': 'mariposa (color, color2)', 'ninguno': 'sin adorno'},
+                'mariposa': 'mariposa (color, color2)',
+                'orejas_conejo': 'diadema con orejas de conejo (color, color2 adentro de la oreja)',
+                'orejas_gato': 'diadema con orejas de gato (color, color2 adentro)',
+                'orejas_zorro': 'diadema con orejas de zorro (color, color2 adentro)',
+                'orejas_oso': 'diadema con orejas de oso (color, color2 adentro)', 'ninguno': 'sin adorno'},
 }
 
 
@@ -575,8 +637,9 @@ def _recortar(capa):
     return salida.getvalue(), [x0, y0, x1 - x0, y1 - y0]
 
 
-def pintar(receta):
-    """Devuelve {'cuerpo': (bytes webp, [x, y, ancho, alto]), 'cabeza': (...) o None, 'vista': imagen PIL}."""
+def pintar(receta, partes=('cuerpo', 'cabeza')):
+    """Devuelve {'cuerpo': (bytes webp, [x, y, ancho, alto]), 'cabeza': (...) o None, 'vista': imagen PIL}.
+    partes: lo que hay que pintar (si solo cambia el adorno, el vestido no se vuelve a pintar)."""
     original, mascara = _cargar()
     base, mono = rgb(receta['base']), rgb(receta['mono'])
     tela = _a_rgb(receta.get('tela') or {'tipo': 'liso'})
@@ -586,7 +649,7 @@ def pintar(receta):
     o, mk = original.load(), mascara.load()
     capa = Image.new('RGBA', original.size, (0, 0, 0, 0))
     cp = capa.load()
-    for y in range(660, 1024):
+    for y in range(660 if 'cuerpo' in partes else 0, 1024 if 'cuerpo' in partes else 0):
         for x in range(240, 790):
             r, g, b, a = o[x, y]
             if a < 200:
@@ -605,9 +668,9 @@ def pintar(receta):
             elif _es_mono(r, g, b):
                 k = max(r, g, b) / 255
                 cp[x, y] = (int(mono[0] * k), int(mono[1] * k), int(mono[2] * k), 255)
-    resultado = {'cuerpo': _recortar(capa), 'cabeza': None}
+    resultado = {'cuerpo': _recortar(capa) if 'cuerpo' in partes else None, 'cabeza': None}
     adorno = receta.get('adorno') or {'tipo': 'ninguno'}
-    dibujo = ADORNOS.get(adorno['tipo'])
+    dibujo = ADORNOS.get(adorno['tipo']) if 'cabeza' in partes else None
     cabeza = None
     if dibujo:
         grande = Image.new('RGBA', (1024 * K, 1024 * K), (0, 0, 0, 0))

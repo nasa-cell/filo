@@ -58,6 +58,9 @@ PERSONA = (
     "SÍ tienes internet: puedes poner música y videos de YouTube, buscar en internet y dibujar; nunca digas que no "
     "tienes internet ni que no puedes poner música. Si te piden una canción y no la pusiste, pide que te diga "
     "'pon' y el nombre, o que active el modo YouTube. "
+    "Tu ropa la cambia la página, no tú al hablar: NUNCA digas que ya te cambiaste, que te pusiste algo o que "
+    "creaste un atuendo. Si te piden ropa y llega aquí, di que no te salió y que te lo pida así: «ponte ropa de "
+    "…», «hazte un atuendo de …» o «hazte otro gorro». "
     "Tienes emociones de verdad, como una niña: reacciona a lo que el Maestro dice o busca y elige la emoción "
     "que SIENTES con eso, variándola (no uses siempre la misma): feliz (contenta), risa (algo gracioso), "
     "emocionada (algo increíble o una sorpresa buena), sorpresa (algo inesperado), pensando (una pregunta difícil), "
@@ -676,7 +679,7 @@ def voz_fish(texto, emocion):
 
 # el taller de Filo trabaja solo cuando el Maestro no la usa: se anota la hora de cada pedido suyo
 ULTIMO_USO = [time.time()]
-USO = ('/hablar', '/voz', '/youtube', '/buscar', '/explicar', '/dibujar', '/sentir-video', '/leer', '/ropa-cambiar')
+USO = ('/hablar', '/voz', '/youtube', '/buscar', '/explicar', '/dibujar', '/sentir-video', '/leer', '/ropa-cambiar', '/ropa-crear')
 
 
 def anotar_uso(ruta):
@@ -984,6 +987,7 @@ class Manejador(SimpleHTTPRequestHandler):
             '/buscar': lambda d: acciones.investigar(str(d.get('consulta', '')), str(d.get('mensaje', '')), pedir_json),
             '/explicar': lambda d: acciones.explicar_enlace(str(d.get('url', ''))[:2000], str(d.get('mensaje', '')), pedir_json),
             '/ropa-cambiar': taller.cambiar,
+            '/ropa-crear': lambda d: taller.crear_pedido(d, lambda tarea, texto: pedir_json(tarea, texto, sin_groq=True, max_tokens=1200)),
             '/ropa-frase-dicha': taller.ropa_frase_dicha,
             '/frase-dicha': taller.frase_dicha,
             '/presente': presente,
