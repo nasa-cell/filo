@@ -429,22 +429,23 @@
     cerrarNube();
     const c = d.crear || {};
     const que = c.parte === 'cabeza' ? 'adorno' : c.parte === 'cuerpo' ? 'vestido' : 'ropa';
-    const tema = c.animal ? 'de ' + c.animal : c.tema ? 'de ' + c.tema : 'nuevo';
+    const tema = c.animal ? 'de ' + c.animal : c.tema ? 'de ' + (c.tema_visto || c.tema) : 'nuevo';
     const barra = avisoRopa(`🧵 Haciendo ${que === 'adorno' ? 'mi adorno' : que === 'vestido' ? 'mi vestido' : 'mi ropa'} ${tema}`, d.segundos || 15);
     decir('¡Espera, Maestro, me lo estoy haciendo!', 'emocionada');
+    let r;
     try {
-      const r = await postJson('/ropa-crear', { crear: c });
+      r = await postJson('/ropa-crear', { crear: c });
       await precargar(r);
       barra.lista();
-      await esperar(400);
-      expresion('feliz', 2000);
-      await ponerRopa(r);
     } catch (e) {
       barra.fallo();
-      decir('¡Ay! No me salió la ropa, Maestro. ¿Me lo pides otra vez en un ratito?', 'pena');
+      return decir('¡Ay! No me salió la ropa, Maestro. ¿Me lo pides otra vez en un ratito?', 'pena');
     } finally {
-      creandoRopa = false;
+      creandoRopa = false;  // ya esta hecha: mientras dice su frase de estreno se le puede pedir otra
     }
+    await esperar(400);
+    expresion('feliz', 2000);
+    return ponerRopa(r);
   }
   // ¿el mensaje pide ropa? (lo decide del todo el servidor; aqui solo se filtra lo que seguro no es)
   function pideRopa(t) {
@@ -453,9 +454,15 @@
     if (/\b(dibuj\w*|pinta\w*|busca\w*|youtube|videos?|cancion\w*|musica)\b/.test(s)) return false;  // «haz un dibujo de un gato con gorro»
     const vestir = /\b(ponte|pontela|pontelo|ponerte|pongas|vistete|vestirte|vistas|disfrazate|disfrazarte|cambiate|cambiarte|pruebate|probarte)\b/;
     const crear = /\b(crea|create|crear|crees|haz|hazte|hacer|hagas|hacerte|disena|disenate|disenar|inventa|inventate|inventar|fabricate|cosete|armate)\b/;
-    const prenda = /\b(ropa|ropita|atuendo|outfit|traje|disfraz|vestido|look|conjunto|uniforme|gorro|gorrito|sombrero|adorno|accesorio|orejas?|orejitas?|diadema|vincha|tiara|corona|lazo|mono)\b/;
-    const cambio = /\b(cambia|cambiar|cambies|otr[oa]s?|nuev[oa]s?|distint[oa]s?|solo|de arriba)\b/;
-    return vestir.test(s) || (crear.test(s) && prenda.test(s)) || (prenda.test(s) && cambio.test(s))
+    const prenda = /\b(ropa|ropita|atuendo|outfit|traje|disfraz|disfraces|vestido|look|conjunto|uniforme|armadura|capa|gorro|gorrito|gorra|capucha|casco|antifaz|mascara|careta|sombrero|adorno|accesorio|orejas?|orejitas?|diadema|vincha|tiara|corona|lazo|mono)\b/;
+    const cambio = /\b(cambia|cambiar|cambies|otr[oa]s?|nuev[oa]s?|distint[oa]s?|solo|de arriba|para ti)\b/;
+    // «quiero verte de hombre araña», «me gustaría verte con gorro de jirafa», «¿y si te disfrazas de vaca?»
+    const verte = /\b(verte|vestida|disfrazada)\s+(de|con|como)\b/.test(s)
+      || /\bte (pones|vistes|disfrazas|disfraces|vistas|pongas)\b/.test(s);
+    // «un gorro de jirafa», «traje de hombre araña», «disfraz de pikachu» (no preguntas como «¿qué es un traje de baño?»)
+    const prendaDe = new RegExp(prenda.source + '\\s+(de|del)\\s+\\w+').test(s)
+      && !/\b(que|cual|cuales|donde|cuanto|cuesta|precio|venden|compr\w*|significa)\b/.test(s);
+    return vestir.test(s) || verte || prendaDe || (crear.test(s) && prenda.test(s)) || (prenda.test(s) && cambio.test(s))
       || /\bcambia\w*\b.*\b(lo de arriba|lo de abajo|de la cabeza|del pelo)\b/.test(s);
   }
 

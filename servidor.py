@@ -159,6 +159,9 @@ NERD = (
     'objetos, colores) y, si es un ejercicio o problema, «## Paso a paso» resolviéndolo. Tu personalidad de Filo en '
     'la tarjeta solo en una frase corta al final. «titulo» = tema de la tarjeta (máximo 6 palabras). Si solo '
     'conversa contigo (saludo, cariño, juegos, contarte algo de su día), «nerd» y «titulo» van vacíos.'
+    ' ORDEN: si hay cuentas, datos o un problema, PRIMERO escribe «calculo» (no se muestra ni se lee): resuélvelo ahí '
+    'paso a paso y compruébalo; DESPUÉS «nerd» y «respuesta» usan EXACTO ese resultado comprobado (los dos dicen lo '
+    'mismo, nunca un número distinto). En charla, «calculo» va vacío.'
 )
 ES_PREGUNTA = re.compile(r'(expl[ií]ca(me)?|resuelve|calcula|define|tarea|ejercicio|ecuaci[oó]n|f[oó]rmula|cu[aá]nto es|'
                          r'diferencia entre|para qu[eé] sirve|ay[uú]dame con|qu[eé] significa|c[oó]mo funciona|'
@@ -192,8 +195,9 @@ def limpiar_salida(salida):
 
 def responder_groq(mensaje, historial, imagen=None, lugar=None, con_clima=True):
     imagen = imagen_valida(imagen)
-    sistema = instrucciones() + NERD + (' Responde SOLO con un objeto JSON: {"respuesta": "lo que dices", "nerd": "", '
-                                        '"titulo": "", "emocion": "una de: ' + ', '.join(EMOCIONES) + '"}.')
+    sistema = instrucciones() + NERD + (' Responde SOLO con un objeto JSON en este orden: {"calculo": "", "nerd": "", '
+                                        '"titulo": "", "respuesta": "lo que dices", "emocion": "una de: '
+                                        + ', '.join(EMOCIONES) + '"}.')
     mensajes = [{'role': 'system', 'content': sistema}]
     for h in historial[-16:]:
         mensajes.append({'role': 'user' if h.get('rol') == 'usuario' else 'assistant', 'content': str(h.get('texto', ''))[:500]})
@@ -207,7 +211,7 @@ def responder_groq(mensaje, historial, imagen=None, lugar=None, con_clima=True):
     else:
         contenido = texto
     mensajes.append({'role': 'user', 'content': contenido})
-    return limpiar_salida(pedir_groq(mensajes, 0.75, 1500))
+    return limpiar_salida(pedir_groq(mensajes, 0.75, 2200))
 
 
 # Groq gratis tiene limite por minuto en cada modelo: si Qwen dice «demasiados pedidos» (429) o falla,
@@ -287,13 +291,15 @@ def responder_gemini(mensaje, historial, imagen=None, lugar=None):
         'contents': contenidos,
         'generationConfig': {
             'temperature': 0.6,
-            'maxOutputTokens': 2000,
+            'maxOutputTokens': 3000,
             'responseMimeType': 'application/json',
             'responseSchema': {
                 'type': 'OBJECT',
-                'properties': {'respuesta': {'type': 'STRING'}, 'nerd': {'type': 'STRING'}, 'titulo': {'type': 'STRING'},
-                               'emocion': {'type': 'STRING', 'enum': EMOCIONES}},
+                'properties': {'calculo': {'type': 'STRING'}, 'nerd': {'type': 'STRING'}, 'titulo': {'type': 'STRING'},
+                               'respuesta': {'type': 'STRING'}, 'emocion': {'type': 'STRING', 'enum': EMOCIONES}},
                 'required': ['respuesta', 'emocion'],
+                # primero la cuenta y la tarjeta, al final lo que dice: asi la voz usa el resultado ya comprobado
+                'propertyOrdering': ['calculo', 'nerd', 'titulo', 'respuesta', 'emocion'],
             },
         },
     }

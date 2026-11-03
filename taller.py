@@ -168,7 +168,7 @@ COLORES = {
 ANIMALES = {'conejo': 'conejo', 'conejito': 'conejo', 'coneja': 'conejo', 'conejita': 'conejo', 'gato': 'gato',
             'gatito': 'gato', 'gata': 'gato', 'gatita': 'gato', 'michi': 'gato', 'neko': 'gato', 'zorro': 'zorro',
             'zorrito': 'zorro', 'zorra': 'zorro', 'zorrita': 'zorro', 'kitsune': 'zorro', 'oso': 'oso', 'osito': 'oso',
-            'osa': 'oso', 'osita': 'oso', 'panda': 'oso'}
+            'osa': 'oso', 'osita': 'oso'}
 # temas que no son nombre ni etiqueta de ningun atuendo, pero tienen parecidos
 SINONIMOS = {'naturaleza': ['bosque', 'campo', 'flores', 'animales'], 'flor': ['flores'], 'florcita': ['flores'],
              'frio': ['invierno'], 'calor': ['verano'], 'estrella': ['estrellas'], 'espacio': ['estrellas', 'noche'],
@@ -179,24 +179,95 @@ VERBOS = re.compile(r'ponte|pontela|pontelo|ponerte|pongas|pon|vistete|vestirte|
                     r'uses|lleva|llevar|lleves|cambiate|cambiarte|cambies|cambia|cambiar|quiero|verte|puedes|podrias|'
                     r'que|te|crea|create|crear|crees|creas|haz|hazte|hacer|hagas|hacerte|hace|disena|disenate|disenar|'
                     r'disenes|inventa|inventate|inventar|inventes|fabrica|fabricate|cose|cosete|arma|armate|prueba|'
-                    r'pruebate|vestida|vestido|vestir|ver|gustaria|me|seria|lindo')
+                    r'pruebate|vestida|vestido|vestir|ver|gustaria|me|seria|lindo|disfrazas|disfraces|disfrazada|'
+                    r'pones|vistes|encantaria|quisiera|como|si|tal|vez|puedas|hagamos|haces')
 CREAR = re.compile(r'\b(crea|create|crear|crees|creas|haz|hazte|hacer|hagas|hacerte|disena|disenate|disenar|disenes|'
                    r'inventa|inventate|inventar|inventes|fabrica|fabricate|cose|cosete|arma|armate|nuev[oa]s?)\b')
-ROPA = re.compile(r'\b(ropa|ropita|atuendo|outfit|traje|disfraz|vestido|look|conjunto|uniforme|gorro|gorrito|'
+ROPA = re.compile(r'\b(ropa|ropita|atuendo|outfit|traje|disfraz|disfraces|disfrazas|disfrazada|vestido|vestida|look|'
+                  r'conjunto|uniforme|armadura|capa|gorro|gorrito|gorra|capucha|casco|antifaz|mascara|careta|'
                   r'sombrero|adorno|accesorio|orejas?|orejitas?|diadema|vincha|tiara|corona|lazo|mono|vestirte|vistete|'
-                  r'disfrazate|cambiate|cambiarte)\b')
-CABEZA = re.compile(r'\b(gorro|gorrito|sombrero|adorno|accesorio|orejas?|orejitas?|diadema|vincha|tiara|corona|lazo|'
+                  r'vistes|disfrazate|cambiate|cambiarte)\b')
+CABEZA = re.compile(r'\b(gorro|gorrito|gorra|capucha|casco|antifaz|mascara|careta|sombrero|adorno|accesorio|orejas?|orejitas?|diadema|vincha|tiara|corona|lazo|'
                     r'cabeza|pelo|cabello|arriba)\b')
 CUERPO = re.compile(r'\b(vestido|tela|falda|abajo|cuerpo)\b')
 COMPLETO = re.compile(r'\b(complet[oa]|tod[oa]|enter[oa]|de pies a cabeza)\b')
-PRENDA = re.compile(r'\b(ropa|ropita|atuendo|outfit|traje|disfraz|conjunto|look|uniforme)\b')
-RELLENO = set(('ropa ropita atuendo atuendos outfit traje disfraz vestido look conjunto uniforme gorro gorrito '
+PRENDA = re.compile(r'\b(ropa|ropita|atuendo|outfit|traje|disfraz|conjunto|look|uniforme|armadura|capa)\b')
+RELLENO = set(('ropa ropita atuendo atuendos outfit traje disfraz disfraces vestido look conjunto uniforme gorro gorrito '
+               'gorra capucha casco antifaz mascara careta armadura capa '
                'sombrero adorno accesorio oreja orejas orejita orejitas diadema vincha tiara corona lazo mono tela '
                'falda cabeza pelo cabello cuerpo arriba abajo solo solamente unicamente nada mas completo completa '
                'todo toda entero entera filo maestro favor por porfa porfis plis please un una unos unas el la los las '
                'lo de del al a con y o en tu tus mi mis su sus otro otra otros otras nuevo nueva nuevos nuevas distinto '
                'distinta algo uno ya ahora hoy bonito bonita lindo linda tipo estilo me tambien color colores pies '
                'para ti tuyo tuya propio propia se esta este eso esa').split())
+
+
+# temas con piezas propias: lo que se pinta si o si cuando el Maestro los nombra (la IA pone el resto).
+# personaje = version inspirada en sus colores y su simbolo, no el traje exacto.
+NEGRO, ROJO, AZUL, AMARILLO, CAFE = '#1e1e26', '#d62f3a', '#2f5fd0', '#f4cf3a', '#b06a30'
+TEMAS = [
+    ('arana', r'hombre arana|spider ?-?(man|girl|woman)|mujer arana|chica arana|telaranas?|aranas?|aracnid\w*', True,
+     {'base': ROJO, 'mono': AZUL, 'tela': {'tipo': 'telarana', 'color': NEGRO},
+      'extras': [{'tipo': 'emblema', 'forma': 'arana', 'color': NEGRO}, {'tipo': 'franja', 'color': AZUL, 'y': 960, 'alto': 40}]}),
+    ('jirafa', r'jirafas?|jirafit\w*', False,
+     {'base': '#f6e3a8', 'mono': CAFE, 'tela': {'tipo': 'manchas', 'color': CAFE},
+      'adorno': {'tipo': 'gorro_jirafa', 'color': AMARILLO, 'color2': CAFE}}),
+    ('vaca', r'vacas?|vaquit\w*|toro', False,
+     {'base': '#f7f7f7', 'mono': '#f58fb5', 'tela': {'tipo': 'vaca', 'color': '#2b2b30'},
+      'adorno': {'tipo': 'gorro_vaca', 'color': '#f7f7f7', 'color2': '#2b2b30'}}),
+    ('ciervo', r'ciervos?|renos?|venados?|bambi', False,
+     {'base': '#b27846', 'mono': '#f6ead2', 'adorno': {'tipo': 'gorro_ciervo', 'color': '#b27846', 'color2': '#784f2d'}}),
+    ('unicornio', r'unicornios?', False,
+     {'adorno': {'tipo': 'gorro_unicornio', 'color': '#fff8ff', 'color2': '#f0c846'}}),
+    ('dinosaurio', r'dinosaurios?|dinos?|t-?rex|dragon(a|es|cito)?', False,
+     {'base': '#5ab45a', 'mono': '#f08a2e', 'tela': {'tipo': 'escamas', 'color': '#2f7a3a'},
+      'adorno': {'tipo': 'gorro_dinosaurio', 'color': '#5ab45a', 'color2': '#f0a032'}}),
+    ('rana', r'ranas?|ranit\w*|sapos?|sapit\w*', False,
+     {'base': '#64c35a', 'mono': '#e6505a', 'adorno': {'tipo': 'gorro_rana', 'color': '#64c35a'}}),
+    ('pato', r'patos?|patit\w*', False,
+     {'base': '#fadc46', 'mono': '#f08c28', 'adorno': {'tipo': 'gorro_pato', 'color': '#fadc46', 'color2': '#f08c28'}}),
+    ('pollito', r'pollit\w*|pollos?|gallin\w*', False,
+     {'base': '#ffe15a', 'mono': '#f09632', 'adorno': {'tipo': 'gorro_pollito', 'color': '#ffe15a', 'color2': '#f09632'}}),
+    ('panda', r'pandas?|pandit\w*', False,
+     {'base': '#f7f7f7', 'mono': '#2b2b30', 'adorno': {'tipo': 'gorro_panda', 'color': '#f7f7f7', 'color2': '#2b2b30'}}),
+    ('leopardo', r'leopardos?|jaguar(es)?|guepardos?|felin\w*', False,
+     {'base': '#f0c070', 'mono': '#3a2a1a', 'tela': {'tipo': 'leopardo', 'color': '#3a2a1a', 'color2': '#a86a30'},
+      'adorno': {'tipo': 'orejas_gato', 'color': '#f0c070', 'color2': '#3a2a1a'}}),
+    ('tigre', r'tigres?|tigrit\w*|tigresa', False,
+     {'base': '#f08a2e', 'mono': '#f7f7f7', 'tela': {'tipo': 'tigre', 'color': '#2b2b30'},
+      'adorno': {'tipo': 'orejas_gato', 'color': '#f08a2e', 'color2': '#f7f7f7'}}),
+    ('cebra', r'cebras?', False,
+     {'base': '#f7f7f7', 'mono': '#e0338f', 'tela': {'tipo': 'cebra', 'color': '#2b2b30'}}),
+    ('sirena', r'sirenas?|pez|peces|pescad\w*', False,
+     {'base': '#2ec4b6', 'mono': '#b79be6', 'tela': {'tipo': 'escamas', 'color': '#1a7f77', 'color2': '#5fd8cc'}}),
+    ('pikachu', r'pikachu|pokemon', True,
+     {'base': AMARILLO, 'mono': ROJO, 'extras': [{'tipo': 'emblema', 'forma': 'rayo', 'color': '#2b2b30'}],
+      'adorno': {'tipo': 'orejas_zorro', 'color': AMARILLO, 'color2': '#fff1a8'}}),
+    ('batman', r'batman|batichica|batgirl|murcielag\w*', True,
+     {'base': '#3a3a48', 'mono': AMARILLO, 'extras': [{'tipo': 'emblema', 'forma': 'estrella', 'color': '#1e1e26', 'color2': AMARILLO}],
+      'adorno': {'tipo': 'orejas_gato', 'color': '#1e1e26', 'color2': '#3a3a48'}}),
+    ('superman', r'super ?man|super ?girl|superchica', True,
+     {'base': AZUL, 'mono': ROJO, 'extras': [{'tipo': 'emblema', 'forma': 'estrella', 'color': ROJO, 'color2': AMARILLO},
+                                            {'tipo': 'franja', 'color': ROJO, 'y': 960, 'alto': 40}]}),
+    ('maravilla', r'mujer maravilla|wonder ?woman', True,
+     {'base': ROJO, 'mono': AMARILLO, 'extras': [{'tipo': 'emblema', 'forma': 'estrella', 'color': '#f7f7f7', 'color2': AZUL},
+                                                {'tipo': 'franja', 'color': AZUL, 'y': 940, 'alto': 60}],
+      'adorno': {'tipo': 'tiara', 'color': '#e8b93a', 'color2': ROJO}}),
+    ('ironman', r'iron ?man|hombre de hierro', True,
+     {'base': '#b3202c', 'mono': '#e8b93a', 'extras': [{'tipo': 'emblema', 'forma': 'estrella', 'color': '#bfeaff', 'color2': '#e8b93a'},
+                                                      {'tipo': 'franja', 'color': '#e8b93a', 'y': 950, 'alto': 50}]}),
+    ('hulk', r'hulk', True, {'base': '#4caf50', 'mono': '#8a4fc9', 'extras': [{'tipo': 'franja', 'color': '#8a4fc9', 'y': 940, 'alto': 60}]}),
+    ('heroe', r'super ?heroes?|super ?heroina|heroes?|heroina', True,
+     {'extras': [{'tipo': 'emblema', 'forma': 'estrella', 'color': AMARILLO}]}),
+]
+TEMAS = [(clave, re.compile(r'\b(' + regla + r')\b'), personaje, piezas) for clave, regla, personaje, piezas in TEMAS]
+ANTIFAZ = re.compile(r'\b(antifaz|mascara|careta|antifaces)\b')
+
+
+def temas_de(pedido):
+    """Temas con piezas propias que nombra el pedido (el primero manda)."""
+    t = _sin_tildes(str(pedido))
+    return [(clave, personaje, piezas) for clave, regla, personaje, piezas in TEMAS if regla.search(t)]
 
 
 def _palabras(t):
@@ -246,9 +317,18 @@ def entender(pedido):
         parte = 'todo'
     tema = [w for w in palabras if w not in RELLENO and not VERBOS.fullmatch(w) and not _color(w) and not w.isdigit()]
     animal = next((ANIMALES[w] for w in palabras if w in ANIMALES), None)
-    return {'crear': bool(CREAR.search(t)), 'parte': parte, 'tema': ' '.join(tema[:4]), 'animal': animal,
-            'colores': colores,
-            'es_ropa': bool(ROPA.search(t) or animal or CABEZA.search(t) or CUERPO.search(t)
+    temas = [clave for clave, _, _ in temas_de(t)]
+    vestir = re.search(r'\b(ponte|pontela|ponerte|pongas|pones|vistete|vestirte|vistes|vistas|verte|vestida|'
+                       r'disfraz\w*|usa|lleva|cambiate)\b', t)
+    original = str(pedido).lower()
+    visto = []  # el tema como lo escribio (con ñ y tildes) para el aviso: «hombre araña», no «hombre arana»
+    for w in tema[:4]:
+        m = re.search(r'(?<![a-z0-9])' + re.escape(w) + r'(?![a-z0-9])', t)
+        visto.append(original[m.start():m.end()] if m and len(original) == len(t) else w)
+    return {'crear': bool(CREAR.search(t)), 'parte': parte, 'tema': ' '.join(tema[:4]), 'tema_visto': ' '.join(visto),
+            'animal': animal,
+            'colores': colores, 'temas': temas,
+            'es_ropa': bool(ROPA.search(t) or animal or CABEZA.search(t) or CUERPO.search(t) or (temas and vestir)
                             or re.search(r'\b(ponte|pontela|ponerte|pongas|vistete)\s+(algo\s+)?de\b', t))}
 
 
@@ -308,7 +388,7 @@ def cambiar(datos):
     if not q['es_ropa'] and not _parecido(lista, q['tema']):
         return {'no_encontre': True}  # «ponte feliz», «usa la cámara»: no era ropa
     crear = {'crear': dict(q, pedido=pedido[:200]), 'segundos': 15}
-    if q['crear'] or q['colores'] or (q['animal'] and q['parte'] != 'cuerpo'):
+    if q['crear'] or q['colores'] or (q['animal'] and q['parte'] != 'cuerpo') or ANTIFAZ.search(_sin_tildes(pedido)):
         return crear  # lo pidio nuevo, con colores o con orejas: se hace a medida
     elegido = _parecido(lista, q['tema'])
     if q['tema'] and not elegido:
@@ -336,7 +416,13 @@ def cambiar(datos):
 
 CREAR_PEDIDO = (
     ' AHORA el Maestro te pidió esta ropa: «{pedido}». Hazla de ESE tema{parte}. {colores}Si pide un animal con '
-    'orejas (conejo, gato, zorro, oso), usa el adorno orejas_<animal>. El nombre dice el tema que pidió.'
+    'orejas (conejo, gato, zorro, oso), usa el adorno orejas_<animal>; si es otro animal con gorro en el catálogo '
+    '(jirafa, vaca, ciervo, unicornio, dinosaurio, rana, pato, pollito, panda), usa gorro_<animal>. El nombre dice el '
+    'tema que pidió. Si es un personaje (Spider-Man, Pikachu, Batman...), haz una versión INSPIRADA en sus colores y '
+    'su símbolo, con nombre tuyo («Filo Araña», no el nombre del personaje). Si el catálogo no tiene la pieza exacta '
+    'de lo que pidió (capa, armadura, alas, cola, zapatos...), haz lo más parecido con sus colores y en la frase dilo '
+    'con honestidad y cariño («me salió lo más parecido que pude, Maestro...»). En la frase nombra SOLO lo que de '
+    'verdad llevas (el color del vestido, su dibujo, el símbolo y el adorno); nunca digas que tienes algo que no está.'
 )
 
 
@@ -364,6 +450,20 @@ def _a_medida(receta, q, actual):
     """Pone si o si lo que pidio el Maestro (colores, orejas, la parte que no cambia) sobre lo que propuso la IA."""
     r = dict(receta) if isinstance(receta, dict) else {}
     col = q.get('colores') or {}
+    temas = temas_de(q.get('pedido') or q.get('tema') or '')
+    for clave, _, piezas in reversed(temas):  # el primero que nombro manda (se pone al final)
+        for k, v in piezas.items():
+            if k == 'adorno' and q['parte'] == 'cuerpo' or k != 'adorno' and q['parte'] == 'cabeza':
+                continue
+            r[k] = json.loads(json.dumps(v))
+        r['etiquetas'] = [clave] + [e for e in (r.get('etiquetas') or []) if e != clave][:4]
+    if q['parte'] != 'cuerpo' and ANTIFAZ.search(_sin_tildes(q.get('pedido') or '')):
+        base = r.get('base') if vestuario.COLOR.match(str(r.get('base'))) else None
+        oscura = not base or vestuario.luminancia(vestuario.rgb(base)) < 70
+        otro = r.get('mono') if vestuario.COLOR.match(str(r.get('mono'))) else ROJO
+        r['adorno'] = {'tipo': 'antifaz', 'color': col.get('cabeza') or (otro if oscura else base), 'color2': '#1e1e26'}
+    elif (r.get('adorno') or {}).get('tipo') == 'antifaz':
+        r['adorno'] = {'tipo': 'ninguno'}  # el antifaz solo si lo pide
     if q.get('animal') and q['parte'] != 'cuerpo':
         a = dict(r.get('adorno') or {})
         propio = a.get('tipo') == 'orejas_' + q['animal'] and a.get('color')  # la IA ya eligio el color de las orejas
@@ -400,6 +500,68 @@ def _a_medida(receta, q, actual):
     return r
 
 
+# ---------- la frase dice solo lo que de verdad lleva ----------
+NOMBRES_COLOR = {'rojo': '#d62f3a', 'azul': '#2f5fd0', 'celeste': '#7cc4f2', 'rosado': '#f58fb5', 'fucsia': '#e0338f',
+                 'morado': '#8a4fc9', 'lila': '#b79be6', 'verde': '#3aa35b', 'amarillo': '#f4cf3a', 'naranja': '#f08a2e',
+                 'negro': '#2b2b30', 'blanco': '#f7f7f7', 'gris': '#9a9aa5', 'dorado': '#e8b93a', 'café': '#8b5a2b',
+                 'turquesa': '#2ec4b6', 'crema': '#f6ead2', 'guinda': '#7d1f35', 'azul marino': '#1b263b'}
+NOMBRE_TELA = {'flores': 'flores', 'estrellas': 'estrellitas', 'lunares': 'lunares', 'corazones': 'corazoncitos',
+               'rayas': 'rayas', 'cuadros': 'cuadros', 'rombos': 'rombos', 'tejido': 'tejido', 'brillos': 'brillitos',
+               'telarana': 'telarañas', 'manchas': 'manchas de jirafa', 'vaca': 'manchas de vaca',
+               'leopardo': 'manchas de leopardo', 'cebra': 'rayas de cebra', 'tigre': 'rayas de tigre',
+               'escamas': 'escamas'}
+NOMBRE_SIMBOLO = {'arana': 'una araña', 'estrella': 'una estrella', 'rayo': 'un rayo', 'corazon': 'un corazón'}
+
+
+def nombre_color(hexa):
+    c = vestuario.rgb(hexa)
+    return min(NOMBRES_COLOR, key=lambda n: vestuario.distancia(vestuario.rgb(NOMBRES_COLOR[n]), c))
+
+
+def _nombre_adorno(a):
+    tipo = (a or {}).get('tipo') or 'ninguno'
+    if tipo == 'ninguno':
+        return ''
+    if tipo.startswith('gorro_'):
+        return 'gorro de ' + tipo[6:]
+    return vestuario.CATALOGO['adornos'].get(tipo, tipo).split(' (')[0].split(';')[0]
+
+
+def frase_de(receta):
+    """Frase armada con lo que de verdad lleva."""
+    partes = ['vestido ' + nombre_color(receta['base'])]
+    tela = (receta.get('tela') or {}).get('tipo')
+    if tela in NOMBRE_TELA:
+        partes[0] += ' con ' + NOMBRE_TELA[tela]
+    simbolo = next((e.get('forma') for e in receta.get('extras') or [] if e.get('tipo') == 'emblema'), None)
+    if simbolo:
+        partes.append(NOMBRE_SIMBOLO.get(simbolo, 'un símbolo') + ' en el pecho')
+    adorno = _nombre_adorno(receta.get('adorno'))
+    if adorno:
+        partes.append(adorno if adorno.startswith(('dos ', 'un ', 'una ')) else 'mi ' + adorno)
+    lista = partes[0] if len(partes) == 1 else ', '.join(partes[:-1]) + ' y ' + partes[-1]
+    return f'¡Mira, Maestro! Me puse mi {lista}. ¿Te gusta?'
+
+
+def frase_honesta(receta):
+    """Si la frase de la IA nombra algo que no lleva (antifaz, gorro, otro color de vestido...), se arma otra."""
+    f = _sin_tildes(receta.get('frase') or '')
+    adorno = (receta.get('adorno') or {}).get('tipo') or 'ninguno'
+    tela = (receta.get('tela') or {}).get('tipo') or 'liso'
+    extras = {e.get('tipo') for e in receta.get('extras') or []}
+    mal = bool(re.search(r'\b(antifaz|mascara|careta)', f) and adorno != 'antifaz'
+               or re.search(r'\b(gorro|gorrito|capucha)', f) and not adorno.startswith('gorro_')
+               or re.search(r'\borej', f) and not adorno.startswith(('orejas_', 'gorro_'))
+               or re.search(r'\b(armadura|capa|alas|cola|zapat\w*|botas|guantes|cinturon|casco)\b', f) and 'parecido' not in f
+               or 'telaran' in f and tela != 'telarana'
+               or 'escamas' in f and tela != 'escamas'
+               or re.search(r'\b(simbolo|emblema)', f) and 'emblema' not in extras)
+    vestido = re.search(r'vestid\w*\s+(?:de\s+(?:color\s+)?)?([a-z]+)', f)
+    if vestido and vestido.group(1) in COLORES:
+        mal = mal or vestuario.distancia(vestuario.rgb(COLORES[vestido.group(1)]), vestuario.rgb(receta['base'])) > 120
+    return frase_de(receta) if mal else receta['frase']
+
+
 def _sin_ia(q, actual, lista):
     """Si la IA no responde: lo mas parecido que tiene, con las orejas y colores pedidos."""
     base = _parecido(lista, q.get('tema') or '') or actual or random.choice(lista)
@@ -433,6 +595,10 @@ def crear_pedido(datos, pedir_json):
     colores = ('Usa EXACTO estos colores que pidió: ' + json.dumps(q['colores']) + '. ') if q['colores'] else ''
     tarea = CREAR_ATUENDO + CREAR_PEDIDO.format(pedido=q['pedido'] or q.get('tema') or 'algo nuevo, a tu gusto',
                                                 parte=pide, colores=colores)
+    fijas = {k: v for k, v in _a_medida({}, q, actual).items() if k != 'etiquetas'}
+    if fijas:  # lo que ya esta decidido (tema, vestido que se queda, antifaz...): la IA lo usa y lo nombra bien
+        tarea += (' Esto va SÍ O SÍ, ya está decidido; úsalo tal cual y en la frase nómbralo bien: '
+                  + json.dumps(fijas, ensure_ascii=False) + '.')
     texto = ('Atuendos que ya tienes (no repitas el nombre): ' + ', '.join(usados)
              + '\nCatálogo: ' + json.dumps(vestuario.CATALOGO, ensure_ascii=False))
     receta = None
@@ -445,6 +611,7 @@ def crear_pedido(datos, pedir_json):
     sin_ia = receta is None
     if sin_ia:
         receta = vestuario.validar(_a_medida(_sin_ia(q, actual, lista), q, actual), usados)
+    receta['frase'] = frase_honesta(receta)
     receta['id'] = 'creado-' + str(int(time.time() * 1000))
     capas_actual = (actual or {}).get('capas') or {}
     if q['parte'] == 'cabeza' and capas_actual.get('cuerpo'):

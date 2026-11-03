@@ -204,8 +204,85 @@ def t_liso(x, y, p):
     return None
 
 
+def t_telarana(x, y, p):
+    """telaraña: rayos que salen del cuello y anillos que se comban entre rayo y rayo"""
+    dx, dy = x - 512, y - 610
+    d, a = math.hypot(dx, dy), math.atan2(dy, dx)
+    paso = 2 * math.pi / 16
+    if abs(a - round(a / paso) * paso) * d < 1.8:
+        return p['color']
+    medio = abs(((a / paso) % 1) - 0.5)
+    return p['color'] if (d / (1 - 0.36 * (0.5 - medio))) % 46 < 2.6 else None
+
+
+def _punto(i, j, mueve=13):
+    """centro de una celda, corrido un poco al azar (siempre el mismo para esa celda)"""
+    h = (i * 73856093 ^ j * 19349663) & 0xffffff
+    return h, i * 60 + 30 + (h % (2 * mueve)) - mueve, j * 60 + 30 + ((h >> 8) % (2 * mueve)) - mueve
+
+
+def _cercanos(x, y):
+    i0, j0 = x // 60, y // 60
+    return sorted((math.hypot(x - cx, y - cy), h, cx, cy) for h, cx, cy in
+                  (_punto(i, j) for i in range(i0 - 1, i0 + 2) for j in range(j0 - 1, j0 + 2)))
+
+
+def t_manchas(x, y, p):
+    """manchas de jirafa: placas separadas por lineas del color del vestido"""
+    c = _cercanos(x, y)
+    return p['color'] if c[1][0] - c[0][0] > 9 else None
+
+
+def t_vaca(x, y, p):
+    """manchas de vaca: unas celdas tienen una mancha grande y ondulada"""
+    for d, h, cx, cy in _cercanos(x, y)[:3]:
+        if h % 3 == 0:
+            a = math.atan2(y - cy, x - cx)
+            if d < 30 + 7 * math.sin(3 * a + h % 7) + 4 * math.cos(5 * a + h % 5):
+                return p['color']
+    return None
+
+
+def t_leopardo(x, y, p):
+    """manchas de leopardo: anillo cortado con el centro de otro color"""
+    d, h, cx, cy = _cercanos(x, y)[0]
+    a = math.atan2(y - cy, x - cx)
+    if 8 < d < 14 and math.sin(3 * a + h % 6) > -0.55:
+        return p['color']
+    if d < 8 and p.get('color2'):
+        return p['color2']
+    return None
+
+
+def t_cebra(x, y, p):
+    return p['color'] if (y + 16 * math.sin(x / 34) + 6 * math.sin(x / 11)) % 38 < 15 else None
+
+
+def t_tigre(x, y, p):
+    """rayas de tigre: entran desde los costados y se afinan hacia el centro"""
+    fila = (y + 10 * math.sin(x / 40)) % 52
+    ancho = 13 * max(0.0, 1 - abs(x - 512) / 210 * 0.9 - 0.25 * math.sin(y / 23))
+    return p['color'] if abs(fila - 26) < ancho * 0.5 + 0.1 and abs(x - 512) > 40 else None
+
+
+def t_escamas(x, y, p):
+    """escamas: medias lunas en filas corridas"""
+    paso = p.get('paso', 30)
+    alto = paso // 2 + 4
+    fila = y // alto
+    corre = paso // 2 if fila % 2 else 0
+    cx = ((x - corre) // paso) * paso + paso // 2 + corre
+    cy = fila * alto
+    d = math.hypot(x - cx, y - cy)
+    if abs(d - paso * 0.5) < 2.2:
+        return p['color']
+    return p.get('color2') if d < paso * 0.5 - 2.2 else None
+
+
 TELAS = {'liso': t_liso, 'flores': t_flores, 'estrellas': t_estrellas, 'lunares': t_lunares, 'corazones': t_corazones,
-         'rayas': t_rayas, 'cuadros': t_cuadros, 'rombos': t_rombos, 'tejido': t_tejido, 'brillos': t_brillos}
+         'rayas': t_rayas, 'cuadros': t_cuadros, 'rombos': t_rombos, 'tejido': t_tejido, 'brillos': t_brillos,
+         'telarana': t_telarana, 'manchas': t_manchas, 'vaca': t_vaca, 'leopardo': t_leopardo, 'cebra': t_cebra,
+         'tigre': t_tigre, 'escamas': t_escamas}
 
 
 # ---------- detalles encima de la tela ----------
@@ -280,9 +357,48 @@ def e_buscador(x, y, p):
     return None
 
 
+def _segmento(u, w, x0, y0, x1, y1):
+    largo = math.hypot(x1 - x0, y1 - y0)
+    t = max(0.0, min(1.0, ((u - x0) * (x1 - x0) + (w - y0) * (y1 - y0)) / largo / largo))
+    return math.hypot(u - (x0 + t * (x1 - x0)), w - (y0 + t * (y1 - y0)))
+
+
+PATAS = ((14, -8, 30, -30, 46, -36), (16, 0, 36, -14, 56, -8), (16, 10, 36, 20, 52, 36), (14, 18, 28, 40, 40, 62))
+
+
+def _emb_arana(u, w):
+    if (u / 15) ** 2 + ((w - 12) / 23) ** 2 < 1 or (u / 10) ** 2 + ((w + 17) / 10) ** 2 < 1:
+        return True
+    return any(_segmento(u, w, s * ax, ay, s * bx, by) < 3.2 or _segmento(u, w, s * bx, by, s * cx, cy) < 3.0
+               for s in (-1, 1) for ax, ay, bx, by, cx, cy in PATAS)
+
+
+def _emb_rayo(u, w):
+    pts = [(10, -48), (-22, 6), (-2, 6), (-12, 48), (22, -8), (2, -8)]
+    dentro = False
+    for (x0, y0), (x1, y1) in zip(pts, pts[1:] + pts[:1]):
+        if (y0 > w) != (y1 > w) and u < x0 + (w - y0) * (x1 - x0) / (y1 - y0):
+            dentro = not dentro
+    return dentro
+
+
+EMBLEMAS = {'arana': _emb_arana, 'rayo': _emb_rayo,
+            'estrella': lambda u, w: _estrella(u, w, 0, 0, 44), 'corazon': lambda u, w: _corazon(u, w, 0, 0, 40)}
+
+
+def e_emblema(x, y, p):
+    """simbolo de heroe en el pecho (debajo del moño), con un circulo de fondo si trae color2"""
+    u, w = x - 512, y - 905
+    if abs(u) > 64 or abs(w) > 64:
+        return None
+    if EMBLEMAS.get(p.get('forma'), _emb_arana)(u, w):
+        return p['color']
+    return p['color2'] if p.get('color2') and math.hypot(u, w) < 58 else None
+
+
 EXTRAS = {'franja': e_franja, 'franjas': e_franjas, 'cuello': e_cuello, 'botones': e_botones, 'cierre': e_cierre,
           'mandil': e_mandil, 'bolsillo': e_bolsillo, 'tirantes': e_tirantes, 'banda': e_banda,
-          'rayas_cuello': e_rayas_cuello, 'play': e_play, 'buscador': e_buscador}
+          'rayas_cuello': e_rayas_cuello, 'play': e_play, 'buscador': e_buscador, 'emblema': e_emblema}
 
 
 # ---------- adornos del pelo ----------
@@ -517,12 +633,147 @@ def a_orejas_oso(d, p):
     _orejas(d, p, 'oso')
 
 
+# ---------- gorros enteros de animal: un casquete sobre el pelo y lo que tiene cada animal ----------
+GORRO = (232, 84, 792, 560)  # elipse del casquete (se usa la mitad de arriba); el borde queda en y = 322
+
+
+def _gorro_y(x):
+    """Altura de arriba del gorro en esa x."""
+    dx = (x - 512) / 280
+    return 322 - 238 * math.sqrt(max(0.0, 1 - dx * dx))
+
+
+def _cuernitos(d, color, bola, alto=48):
+    for x, signo in ((456, -1), (568, 1)):
+        y = _gorro_y(x) + 6
+        palo = _girar([(-10, 0), (-8, -alto), (8, -alto), (10, 0)], x, y, 8 * signo)
+        d.polygon(palo, fill=color, outline=oscuro(color), width=3 * K)
+        bx, by = (palo[1][0] + palo[2][0]) / 2 / K, palo[1][1] / K - 6
+        d.ellipse(((bx - 15) * K, (by - 13) * K, (bx + 15) * K, (by + 13) * K), fill=bola, outline=oscuro(bola), width=3 * K)
+
+
+def _orejas_lado(d, color, adentro, x=(338, 686), giro=64, largo=44):
+    for ox, signo in zip(x, (-1, 1)):
+        y = _gorro_y(ox) + 16
+        d.polygon(_girar(_elipse(0, -largo * 0.7, largo * 0.5, largo), ox, y, giro * signo), fill=color, outline=oscuro(color), width=3 * K)
+        d.polygon(_girar(_elipse(0, -largo * 0.68, largo * 0.25, largo * 0.66), ox, y, giro * signo), fill=adentro)
+
+
+def _manchas_gorro(d, color, lista):
+    for mx, my, r in lista:
+        d.polygon(_girar(_elipse(0, 0, r, r * 0.8, 7), mx, my, mx % 40), fill=color)
+
+
+def _casquete(d, color, color2):
+    d.pieslice(tuple(v * K for v in GORRO), 180, 360, fill=color, outline=oscuro(color), width=4 * K)
+    d.rectangle((236 * K, 306 * K, 788 * K, 326 * K), fill=color2, outline=oscuro(color2), width=2 * K)
+
+
+MANCHAS_JIRAFA = ((330, 250, 26), (420, 180, 30), (520, 140, 24), (610, 190, 30), (700, 260, 24), (470, 260, 22),
+                  (570, 270, 24), (380, 290, 14), (660, 290, 14))
+MANCHAS_VACA = ((360, 220, 44), (600, 160, 40), (690, 270, 30), (480, 280, 26))
+
+
+def a_gorro(d, p, animal):
+    c = p['color'] + (255,)
+    c2 = p.get('color2', GORROS[animal][1]) + (255,)
+    rosa = (255, 190, 200, 255)
+    if animal in ('ciervo',):  # las astas van detras del gorro
+        for x, s in ((440, -1), (584, 1)):
+            y = _gorro_y(x) + 10
+            for tramo in ([(0, 0), (s * 14, -70)], [(s * 6, -32), (s * 34, -52)], [(s * 11, -54), (s * -6, -82)]):
+                d.line([((x + a) * K, (y + b) * K) for a, b in tramo], fill=c2, width=12 * K, joint='curve')
+    if animal == 'dinosaurio':
+        for i in range(7):
+            x = 290 + i * 74
+            y = _gorro_y(x)
+            d.polygon([((x - 26) * K, (y + 12) * K), (x * K, max(6, y - 40) * K), ((x + 26) * K, (y + 12) * K)],
+                      fill=c2, outline=oscuro(c2), width=3 * K)
+    _casquete(d, c, c2 if animal not in ('jirafa', 'vaca', 'panda', 'pollito', 'pato') else oscuro(c, 0.82))
+    if animal == 'jirafa':
+        _manchas_gorro(d, c2, MANCHAS_JIRAFA)
+        _orejas_lado(d, c, rosa)
+        _cuernitos(d, c, c2)
+    elif animal == 'vaca':
+        _manchas_gorro(d, c2, MANCHAS_VACA)
+        _orejas_lado(d, c, rosa)
+        for x, s in ((430, -1), (594, 1)):  # cuernos cortos y curvos
+            y = _gorro_y(x) + 8
+            d.polygon(_girar([(-11, 0), (-6, -30), (8, -44), (16, -40), (11, 0)], x, y, 20 * s), fill=(250, 240, 220, 255),
+                      outline=(150, 130, 100, 255), width=3 * K)
+    elif animal == 'ciervo':
+        _orejas_lado(d, c, rosa)
+        for x in (420, 560, 650, 380, 500):
+            yy = _gorro_y(x) + 40
+            d.ellipse(((x - 9) * K, (yy - 9) * K, (x + 9) * K, (yy + 9) * K), fill=(255, 250, 240, 255))
+    elif animal == 'unicornio':
+        _orejas_lado(d, c, rosa)
+        y = _gorro_y(512) + 8
+        cuerno = [(474 * K, y * K), (512 * K, max(6, y - 82) * K), (550 * K, y * K)]
+        d.polygon(cuerno, fill=c2, outline=oscuro(c2), width=3 * K)
+        for i in range(1, 4):
+            yy = y - i * 20
+            ancho = 38 * (1 - i * 20 / 82)
+            d.line([((512 - ancho) * K, (yy + 6) * K), ((512 + ancho) * K, (yy - 4) * K)], fill=oscuro(c2, 0.8), width=3 * K)
+        for x, col in ((300, (255, 150, 200)), (330, (170, 140, 255)), (705, (130, 210, 255))):  # mechones de colores
+            yy = _gorro_y(x) + 10
+            d.polygon(_girar(_elipse(0, 40, 22, 52), x, yy, 18 if x < 512 else -18), fill=col + (255,), outline=oscuro(col), width=2 * K)
+    elif animal == 'dinosaurio':
+        for x, y in ((380, 240), (500, 180), (630, 230), (560, 280)):
+            d.ellipse(((x - 16) * K, (y - 12) * K, (x + 16) * K, (y + 12) * K), fill=oscuro(c, 0.8))
+    elif animal == 'rana':
+        for x in (410, 614):
+            y = _gorro_y(x) - 4
+            d.ellipse(((x - 50) * K, (y - 50) * K, (x + 50) * K, (y + 40) * K), fill=c, outline=oscuro(c), width=4 * K)
+            d.ellipse(((x - 30) * K, (y - 34) * K, (x + 30) * K, (y + 24) * K), fill=(255, 255, 255, 255), outline=(40, 40, 50, 255), width=3 * K)
+            d.ellipse(((x - 13) * K, (y - 18) * K, (x + 13) * K, (y + 10) * K), fill=(30, 30, 40, 255))
+    elif animal in ('pato', 'pollito'):
+        for i, giro in enumerate((-30, 0, 30)):  # plumitas arriba
+            d.polygon(_girar(_elipse(0, -22, 10, 24), 512 + (i - 1) * 14, _gorro_y(512) + 8, giro), fill=c, outline=oscuro(c), width=3 * K)
+        d.chord(((460) * K, 292 * K, 564 * K, 352 * K), 0, 180, fill=c2, outline=oscuro(c2), width=3 * K)  # pico en la visera
+        for x in (420, 604):
+            yy = 255
+            d.ellipse(((x - 13) * K, (yy - 15) * K, (x + 13) * K, (yy + 15) * K), fill=(30, 30, 40, 255))
+            d.ellipse(((x - 4) * K, (yy - 10) * K, (x + 3) * K, (yy - 3) * K), fill=(255, 255, 255, 255))
+    elif animal == 'panda':
+        for x in (348, 676):
+            y = _gorro_y(x) + 8
+            d.ellipse(((x - 44) * K, (y - 50) * K, (x + 44) * K, (y + 30) * K), fill=c2, outline=oscuro(c2), width=3 * K)
+        d.pieslice(tuple(v * K for v in GORRO), 180, 360, fill=c, outline=oscuro(c), width=4 * K)
+        d.rectangle((236 * K, 306 * K, 788 * K, 326 * K), fill=c2)
+        for x in (440, 584):
+            d.ellipse(((x - 34) * K, 220 * K, (x + 34) * K, 280 * K), fill=c2)
+            d.ellipse(((x - 11) * K, 238 * K, (x + 11) * K, 262 * K), fill=(255, 255, 255, 255))
+
+
+# animal: (color del gorro, color de los detalles) por si la IA no los da
+GORROS = {'jirafa': ((244, 207, 58), (176, 106, 48)), 'vaca': ((250, 250, 250), (40, 40, 48)),
+          'ciervo': ((178, 120, 70), (120, 80, 45)), 'unicornio': ((255, 250, 255), (240, 200, 70)),
+          'dinosaurio': ((90, 180, 90), (240, 160, 50)), 'rana': ((100, 195, 90), (230, 80, 90)),
+          'pato': ((250, 220, 70), (245, 140, 40)), 'pollito': ((255, 225, 90), (245, 150, 50)),
+          'panda': ((250, 250, 250), (40, 40, 48))}
+
+
+def a_antifaz(d, p):
+    """antifaz de heroe sobre los ojos, con huecos para que se vean"""
+    c = p['color'] + (255,)
+    pts = [((512 + 252 * math.cos(a)) * K, (455 + (80 + 18 * math.cos(2 * a)) * math.sin(a)) * K)
+           for a in (2 * math.pi * i / 90 for i in range(90))]
+    d.polygon(pts, fill=c, outline=oscuro(c), width=4 * K)
+    for ex in (388, 653):
+        caja = ((ex - 84) * K, 378 * K, (ex + 84) * K, 530 * K)
+        d.ellipse(caja, fill=(0, 0, 0, 0))
+        d.ellipse(caja, outline=p.get('color2', (30, 30, 40)) + (255,), width=6 * K)
+
+
 ADORNOS = {'ninguno': None, 'flor': a_flor, 'sakura': a_sakura, 'girasol': a_girasol, 'margarita': a_margarita,
            'lazo': a_lazo, 'estrella': a_estrella, 'tiara': a_tiara, 'cofia': a_cofia, 'vincha': a_vincha,
            'orejeras': a_orejeras, 'hojas': a_hojas, 'pinzas': a_pinzas, 'lupa': a_lupa, 'broches': a_broches,
            'corazon': a_corazon, 'luna': a_luna, 'mariposa': a_mariposa,
            'orejas_conejo': a_orejas_conejo, 'orejas_gato': a_orejas_gato, 'orejas_zorro': a_orejas_zorro,
-           'orejas_oso': a_orejas_oso}
+           'orejas_oso': a_orejas_oso, 'antifaz': a_antifaz}
+for _animal in GORROS:
+    ADORNOS['gorro_' + _animal] = (lambda animal: lambda d, p: a_gorro(d, p, animal))(_animal)
 
 # lo que se le explica a la IA cuando Filo inventa un atuendo
 CATALOGO = {
@@ -530,11 +781,15 @@ CATALOGO = {
               'estrellas': 'estrellitas (color)', 'lunares': 'lunares (color, o colores: lista de 2-4)',
               'corazones': 'corazoncitos (color)', 'rayas': 'rayas (color; dir h o v; ancho 6-20)',
               'cuadros': 'cuadros (color)', 'rombos': 'rombos (color o colores)', 'tejido': 'chompa tejida (color, color2)',
-              'brillos': 'brillitos (color)'},
+              'brillos': 'brillitos (color)', 'telarana': 'telaraña (color de las líneas, oscuro)',
+              'manchas': 'manchas de jirafa (color de las placas)', 'vaca': 'manchas de vaca (color)',
+              'leopardo': 'manchas de leopardo (color anillo, color2 centro)', 'cebra': 'rayas de cebra (color)',
+              'tigre': 'rayas de tigre (color)', 'escamas': 'escamas de dragón, dinosaurio o sirena (color borde, color2 relleno)'},
     'extras': {'franja': 'franja abajo (color, y 900-1000, alto 15-40)', 'franjas': 'varias franjas (colores, y, alto)',
                'cuello': 'cuello de otro color (color)', 'botones': 'botones (color)', 'cierre': 'cierre al medio (color)',
                'mandil': 'mandil (color)', 'bolsillo': 'bolsillo (color)', 'tirantes': 'tirantes (color, color2 polo)',
-               'banda': 'banda diagonal (color)', 'rayas_cuello': 'rayas en el cuello (color)'},
+               'banda': 'banda diagonal (color)', 'rayas_cuello': 'rayas en el cuello (color)',
+               'emblema': 'símbolo de héroe en el pecho (forma: arana, estrella, rayo o corazon; color; color2 círculo de fondo)'},
     'adornos': {'flor': 'flor (color, color2 centro, petalos)', 'sakura': 'flor de cerezo con colgante (color)',
                 'girasol': 'girasol (color, color2)', 'margarita': 'margarita con hoja (color, color2)',
                 'lazo': 'lazo (color)', 'estrella': 'dos estrellas (color, color2)', 'tiara': 'tiara (color, color2 joya)',
@@ -545,12 +800,22 @@ CATALOGO = {
                 'orejas_conejo': 'diadema con orejas de conejo (color, color2 adentro de la oreja)',
                 'orejas_gato': 'diadema con orejas de gato (color, color2 adentro)',
                 'orejas_zorro': 'diadema con orejas de zorro (color, color2 adentro)',
-                'orejas_oso': 'diadema con orejas de oso (color, color2 adentro)', 'ninguno': 'sin adorno'},
+                'orejas_oso': 'diadema con orejas de oso (color, color2 adentro)',
+                'gorro_jirafa': 'gorro entero de jirafa con manchas, cuernitos y orejas (color, color2 manchas)',
+                'gorro_vaca': 'gorro de vaca con manchas y cuernos (color, color2 manchas)',
+                'gorro_ciervo': 'gorro de ciervo o reno con astas (color, color2 astas)',
+                'gorro_unicornio': 'gorro de unicornio con cuerno (color, color2 cuerno)',
+                'gorro_dinosaurio': 'gorro de dinosaurio o dragón con púas (color, color2 púas)',
+                'gorro_rana': 'gorro de rana con ojos saltones (color)', 'gorro_pato': 'gorro de pato con pico (color, color2 pico)',
+                'gorro_pollito': 'gorro de pollito con pico (color, color2 pico)',
+                'gorro_panda': 'gorro de panda con orejas negras (color, color2 orejas)',
+                'antifaz': 'antifaz de héroe sobre los ojos (color, color2 borde); SOLO si el Maestro pide antifaz o máscara',
+                'ninguno': 'sin adorno'},
 }
 
 
 # ---------- reglas ----------
-PROHIBIDO = re.compile(r'sex|desnud|lencer|bikini|tanga|sangre|muert|arma|droga|nazi|calavera|diablo|porn', re.I)
+PROHIBIDO = re.compile(r'sex|desnud|lencer|bikini|tanga|sangre|muert|\barmas?\b|droga|nazi|calavera|diablo|porn', re.I)
 COLOR = re.compile(r'^#[0-9a-fA-F]{6}$')
 
 
@@ -597,6 +862,8 @@ def validar(receta, nombres_usados=()):
                 p[k] = int(min(mx, max(mn, int(dato[k]))))
         if dato.get('dir') in ('h', 'v'):
             p['dir'] = dato['dir']
+        if dato.get('forma') in EMBLEMAS:
+            p['forma'] = dato['forma']
         if p['tipo'] not in ('liso', 'ninguno', 'cofia', 'play', 'buscador') and 'color' not in p and 'colores' not in p:
             raise ValueError('falta el color en ' + que)
         return p
