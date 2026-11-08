@@ -47,7 +47,8 @@ Servicio web de Python: comando de instalación `pip install -r requirements.txt
 | `acciones.py` | dibujar, buscar videos y buscar en internet |
 | `memoria.py` | lo que Filo recuerda de cada persona y su ánimo |
 | `grabar_voces.py` | graba con la voz de Filo las frases de `codigo/frases-filo.js` |
-| `codigo/ilustracion.js`, `codigo/filo.js` | las dos Filo animadas (ilustración y dibujo) |
+| `codigo/ilustracion.js` | Filo ilustrada y animada |
+| `codigo/tres.js`, `tres/` | Filo en 3D (modelo VRM): reacciones, ropa, gestos, zoom y giro |
 | `codigo/conversacion.js` | conversación, micrófono, caricias, emociones |
 | `codigo/acciones.js` | panel del dibujo, videos, resultados y álbum |
 | `codigo/frases-filo.js` | frases propias de Filo (hablar sola, caricias, avisos) |

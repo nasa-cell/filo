@@ -6,6 +6,12 @@
 <title>Filo</title>
 <link rel="stylesheet" href="estilos/estilos.css?v=6">
 <link rel="stylesheet" href="estilos/fondos.css?v=9">
+<link rel="stylesheet" href="estilos/tres.css?v=1">
+<script type="importmap">{ "imports": {
+  "three": "./tres/librerias/three/three.module.min.js",
+  "three/addons/": "./tres/librerias/three/addons/",
+  "@pixiv/three-vrm": "./tres/librerias/three-vrm/three-vrm.module.min.js"
+} }</script>
 </head>
 <body data-estilo="A">
 <div class="fondo" id="fondo" aria-hidden="true"></div>
@@ -14,7 +20,7 @@
   <div class="estilos" role="group" aria-label="Cómo ver a Filo">
     <span class="rotulo">Ver:</span>
     <button class="vista" data-vista="ilustracion" aria-pressed="true">Ilustración</button>
-    <button class="vista" data-vista="dibujo" aria-pressed="false">Dibujo</button>
+    <button class="vista" data-vista="tres" aria-pressed="false">3D</button>
     <button class="vista" data-vista="ambas" aria-pressed="false">Las dos</button>
   </div>
   <button class="vista b-youtube" id="b-youtube" type="button" aria-pressed="false" title="Modo YouTube: todo lo que pidas, Filo lo busca en YouTube">▶ Modo YouTube</button>
@@ -46,12 +52,12 @@
 </form>
 <script src="codigo/fondo.js?v=5"></script>
 <script src="codigo/ropa.js?v=5"></script>
-<script src="codigo/filo.js?v=5"></script>
 <script src="codigo/ilustracion.js?v=5"></script>
+<script src="codigo/tres.js?v=1"></script>
 <script src="codigo/acciones.js?v=6"></script>
 <script src="codigo/acceso.js?v=5"></script>
   <script src="codigo/frases-filo.js?v=5"></script>
-<script src="codigo/conversacion.js?v=9"></script>
-<script src="codigo/separar.js?v=3"></script>
+<script src="codigo/conversacion.js?v=10"></script>
+<script src="codigo/separar.js?v=4"></script>
 </body>
 </html>

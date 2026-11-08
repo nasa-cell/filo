@@ -35,10 +35,12 @@
       const tope = [...ilu.querySelectorAll('.ropa-dia, .ropa')].map(caja).filter((r) => r.height && r.bottom > a.y && r.top < b.y);
       return { left: a.x, right: b.x, top: Math.min(a.y, ...tope.map((r) => r.top)), bottom: b.y };
     }
-    const dib = $('filo');
-    if (visible(dib)) {
-      const r = caja(dib.querySelector('svg > g') || dib);
-      return { left: r.left + r.width * 0.15, right: r.right - r.width * 0.15, top: r.top, bottom: r.top + r.height * 0.45 };
+    const tres = $('filo');  // Filo 3D: la cabeza se mide en la pantalla (se mueve, gira y hace zoom)
+    if (visible(tres)) {
+      const c = window.FiloTres && window.FiloTres.cabeza();
+      if (c) return c;
+      const r = caja(tres);
+      return { left: r.left + r.width * 0.3, right: r.right - r.width * 0.3, top: r.top, bottom: r.top + r.height * 0.4 };
     }
     return null;
   }

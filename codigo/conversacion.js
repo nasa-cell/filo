@@ -1,18 +1,22 @@
-// Controla la pagina: cambia entre ilustracion y dibujo, los botones de caras y la
+// Controla la pagina: cambia entre ilustracion y Filo 3D, los botones de caras y la
 // conversacion (Gemini piensa la respuesta y Filo la dice con su voz de Fish Audio).
 (function () {
   const $ = (id) => document.getElementById(id);
-  const vistas = { ilustracion: $('ilustracion'), dibujo: $('filo') };
-  const filos = () => [window.FiloIlustracion, window.FiloDibujo].filter(Boolean);
+  const vistas = { ilustracion: $('ilustracion'), tres: $('filo') };
+  const filos = () => [window.FiloIlustracion, window.FiloTres].filter(Boolean);
 
   function ver(nombre) {
     for (const k in vistas) vistas[k].hidden = nombre !== 'ambas' && k !== nombre;
     document.body.classList.toggle('ver-ambas', nombre === 'ambas');
+    document.body.classList.toggle('ver-tres', nombre === 'tres');
+    if (window.FiloTres) window.FiloTres.mostrar(nombre !== 'ilustracion');
     document.querySelectorAll('[data-vista]').forEach((b) => b.setAttribute('aria-pressed', b.dataset.vista === nombre));
     localStorage.setItem('filo_vista', nombre);
   }
   document.querySelectorAll('[data-vista]').forEach((b) => b.addEventListener('click', () => ver(b.dataset.vista)));
-  ver(['dibujo', 'ambas'].includes(localStorage.getItem('filo_vista')) ? localStorage.getItem('filo_vista') : 'ilustracion');
+  // quien tenía elegida la Filo dibujada con código (ya no existe) ve la 3D
+  const vistaGuardada = { dibujo: 'tres', tres: 'tres', ambas: 'ambas' }[localStorage.getItem('filo_vista')];
+  ver(vistaGuardada || 'ilustracion');
 
   let quitarCara = null;
   // cara de descanso segun el animo que le quedo (contenta, enojada, celosa o triste por un rato)
@@ -552,16 +556,9 @@
   const CARICIAS = FF.caricias;
   let ultimaCaricia = 0, toquesAla = [], frotado = 0, ultimoPunto = null;
   function zonaDe(e) {
-    if (e.target.closest('#filo')) {  // dibujo
-      if (e.target.closest('.ala, .alas')) return 'alas';
-      // el ala se mueve al tocarla: se cuenta toda su zona, aunque el dedo caiga en el pelo de al lado
-      const sd = e.target.closest('svg');
-      if (sd && sd.getScreenCTM()) {
-        const q = new DOMPoint(e.clientX, e.clientY).matrixTransform(sd.getScreenCTM().inverse());
-        if (q.y > 350 && q.y < 510 && (q.x < 205 || q.x > 395)) return 'alas';
-      }
-      if (e.target.closest('.cabeza, .cabeza-atras')) return 'cabeza';
-      return e.target.closest('svg') ? 'cuerpo' : null;
+    if (e.target.closest('#filo')) {  // Filo 3D: la cabeza se mide en la pantalla; los botones de zoom no cuentan
+      if (!e.target.closest('canvas') || !window.FiloTres) return null;
+      return window.FiloTres.zona(e.clientX, e.clientY);
     }
     const svg = e.target.closest('#ilustracion svg');
     if (!svg || !svg.getScreenCTM()) return null;

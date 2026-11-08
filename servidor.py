@@ -918,7 +918,31 @@ def pensado_contado(datos):
 
 
 class Manejador(SimpleHTTPRequestHandler):
-    extensions_map = {**SimpleHTTPRequestHandler.extensions_map, '.webp': 'image/webp'}  # la ropa de Filo es webp
+    extensions_map = {**SimpleHTTPRequestHandler.extensions_map, '.webp': 'image/webp',  # la ropa de Filo es webp
+                      '.vrm': 'model/gltf-binary', '.js': 'text/javascript', '.mjs': 'text/javascript'}
+
+    # Filo 3D: el modelo y las librerias van ya comprimidos (archivo.gz al lado); en el celular baja 4 MB en vez de 11
+    def enviar_comprimido(self, ruta):
+        archivo = os.path.join(CARPETA, ruta.lstrip('/').replace('/', os.sep))
+        if 'gzip' not in (self.headers.get('Accept-Encoding') or '') or not os.path.isfile(archivo + '.gz'):
+            return False
+        cambio = os.path.getmtime(archivo + '.gz')
+        fecha = self.date_time_string(int(cambio))
+        if self.headers.get('If-Modified-Since') == fecha:
+            self.send_response(304)
+            self.end_headers()
+            return True
+        with open(archivo + '.gz', 'rb') as f:
+            datos = f.read()
+        self.send_response(200)
+        self.send_header('Content-Type', self.extensions_map.get(os.path.splitext(archivo)[1], 'application/octet-stream'))
+        self.send_header('Content-Encoding', 'gzip')
+        self.send_header('Content-Length', str(len(datos)))
+        self.send_header('Last-Modified', fecha)
+        self.send_header('Vary', 'Accept-Encoding')
+        self.end_headers()
+        self.wfile.write(datos)
+        return True
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, directory=CARPETA, **kwargs)
@@ -1054,6 +1078,8 @@ class Manejador(SimpleHTTPRequestHandler):
             except Exception as e:
                 print(ruta.path, 'fallo:', str(e)[:200])
                 return self.enviar_json(502, {'error': 'no se pudo'})
+        if ruta.path.startswith('/tres/') and '..' not in ruta.path and self.enviar_comprimido(urllib.parse.unquote(ruta.path)):
+            return
         if not self.path.startswith('/voz?'):
             return super().do_GET()
         consulta = urllib.parse.parse_qs(urllib.parse.urlparse(self.path).query)

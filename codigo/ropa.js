@@ -1,7 +1,7 @@
 // Ropero de Filo: la ropa que se pone segun lo que hace (dibujar, musica, buscar, dormir, comida)
 // y en fechas especiales. Cada pieza tiene lo que va en la cabeza, en el cuerpo y alrededor (extra).
 // Las medidas son las de la ilustracion (1024 x 1024): pelo arriba y=84, lados del pelo x 210-802,
-// ojos y=450, pecho y 680-1024. La version «Dibujo» usa las mismas piezas achicadas (ver filo.js).
+// ojos y=450, pecho y 680-1024. La Filo 3D arma su ropa con piezas 3D (ver tres/filo-3d.js).
 (function () {
   const nota = (x, y, c) => `<g class="ropa-nota" fill="${c}"><ellipse cx="${x}" cy="${y}" rx="16" ry="12" transform="rotate(-20 ${x} ${y})"/>`
     + `<rect x="${x + 11}" y="${y - 62}" width="7" height="62"/><path d="M ${x + 18} ${y - 62} q 26 10 22 34 q -8 -18 -22 -18 z"/></g>`;

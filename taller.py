@@ -77,7 +77,9 @@ def publica(receta, voces=None):
     if not receta:
         return None
     return {'id': receta['id'], 'nombre': receta['nombre'], 'frase': receta['frase'], 'emocion': receta.get('emocion', 'feliz'),
-            'capas': receta.get('capas', {}), 'dibujo': vestuario.colores_dibujo(receta), 'voz': receta.get('voz', '')}
+            'capas': receta.get('capas', {}), 'dibujo': vestuario.colores_dibujo(receta), 'voz': receta.get('voz', ''),
+            # la Filo 3D arma la misma ropa con piezas 3D: colores, tela, franjas y adorno del pelo
+            'tres': {k: receta[k] for k in ('base', 'mono', 'tela', 'extras', 'adorno') if receta.get(k) is not None}}
 
 
 # ---------- ropa del dia ----------
