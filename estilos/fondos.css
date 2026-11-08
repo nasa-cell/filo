@@ -59,6 +59,8 @@ body > *:not(.fondo) { position: relative; z-index: 1; }
 .estado[data-tipo="voz"] { border-color: var(--dorado); }
 .estado[data-tipo="lista"] { border-color: #16a34a; color: #15803d; }
 .estado[data-tipo="lista"]::before { content: "✓"; border: none; width: auto; height: auto; animation: none; font-size: 1.1rem; }
+.estado[data-tipo="emocion"] { border-color: var(--dorado); white-space: normal; text-align: center; max-width: min(92vw, 560px); width: max-content; border-radius: 18px; }
+.estado[data-tipo="emocion"]::before { content: none; }
 @keyframes gira { to { transform: rotate(360deg); } }
 @media (max-width: 560px) { .estado { top: 6px; font-size: .95rem; padding: 8px 14px; } }
 @media (prefers-reduced-motion: reduce) { .estado::before { animation: none; } }
@@ -389,4 +391,31 @@ body > .grande { position: fixed; inset: 0; z-index: 8; background: rgba(5, 15, 
 @media (max-width: 345px) {
   .arriba > .vista, .arriba .estilos .vista { font-size: .74rem; padding: 0 7px; }
   .arriba .rotulo { display: none; }
+}
+
+/* ---------- celular: video, análisis, resultados, dibujo y cámara van en una columna arriba a la izquierda
+   y Filo se queda grande a la derecha (igual que el video); nada la empuja ni la achica ---------- */
+@media (max-width: 700px) {
+  .escenario:has(> .lado:not([hidden])), .escenario:has(> .camara:not([hidden])),
+  .escenario:has(> .lado:not([hidden])):has(> .camara:not([hidden])) { grid-template-rows: minmax(0, 1fr); padding-top: 8px; }
+  .escenario:has(> .lado:not([hidden])) > #ilustracion, .escenario:has(> .camara:not([hidden])) > #ilustracion,
+  .escenario:has(> .lado:not([hidden])) > #filo, .escenario:has(> .camara:not([hidden])) > #filo { grid-row: 1; }
+  .escenario:has(> .lado:not([hidden])) > #ilustracion, .escenario:has(> .camara:not([hidden])) > #ilustracion,
+  .escenario:has(> .lado[data-tipo]:not([hidden])) > #ilustracion { margin-left: 14%; width: 86%; }
+  .ver-ambas .escenario:has(> .lado:not([hidden])) > #ilustracion, .ver-ambas .escenario:has(> .camara:not([hidden])) > #ilustracion { grid-column: 1; margin: 0; width: 100%; align-self: end; height: 58%; }
+  .ver-ambas .escenario:has(> .lado:not([hidden])) > #filo, .ver-ambas .escenario:has(> .camara:not([hidden])) > #filo { grid-column: 2; }
+  .escenario > .lado:not([hidden]) { grid-row: 1; grid-column: 1 / -1; width: 54%; justify-self: start; align-self: start; z-index: 4; }
+  .escenario > .camara:not([hidden]), .escenario:has(> .lado:not([hidden])) > .camara:not([hidden]) {
+    position: relative; inset: auto; grid-row: 1; grid-column: 1 / -1; justify-self: start; align-self: start; width: 36vw; z-index: 4; }
+  .escenario > .lado .tele { width: 100%; }
+  .escenario > .lado .resultados { width: 100%; max-height: var(--alto-panel, 46vh); overflow-y: auto; }
+  .lado[data-tipo="dibujo"] { grid-template-columns: 1fr; }
+  .lado .polaroid { width: 100%; }
+  /* el aviso de arriba entra en el lado de Filo: puede ir en dos líneas */
+  .escenario:has(> .lado:not([hidden])) .estado, .escenario:has(> .camara:not([hidden])) .estado { white-space: normal; text-align: center; line-height: 1.2; }
+  .estado::before { flex: 0 0 auto; }
+}
+/* celular bajito: con cámara y algo más abierto, la cámara es más chica para dejar lugar a la ventana */
+@media (max-width: 700px) and (max-height: 760px) {
+  .escenario:has(> .lado:not([hidden])) > .camara:not([hidden]) { width: 26vw; }
 }

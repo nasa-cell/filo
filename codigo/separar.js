@@ -9,7 +9,8 @@
   const lado = $('lado');
   const globos = ['estado', 'nube-pensar', 'burbuja-video'].map($).filter(Boolean);
   const avisoRopa = $('aviso-ropa');  // aviso de la ropa que se esta haciendo: fijo arriba a la izquierda
-  const album = $('album');  // cuadrito del album, arriba a la izquierda: los globos y la ventana lo esquivan
+  const album = $('album');
+  const camara = $('camara');  // cuadrito del album, arriba a la izquierda: los globos y la ventana lo esquivan
   if (!escenario || !lado) return;
 
   const visible = (e) => e && !e.hidden && e.getClientRects().length > 0 && getComputedStyle(e).display !== 'none';
@@ -49,11 +50,46 @@
     const celular = innerWidth <= 700;
     const hayLado = visible(lado) && !document.body.classList.contains('video-grande');
     lado.style.marginTop = '';
+    if (camara) camara.style.marginTop = '';
+    lado.style.removeProperty('--alto-panel');
+    const ilu = $('ilustracion'); if (ilu) ilu.style.transform = '';
+    // celular: la columna de la izquierda (ventana arriba y cámara debajo); la ventana no pasa del alto libre
+    const columna = celular && (hayLado || visible(camara));
+    if (columna && hayLado) {
+      // con cámara: la cámara arriba y la ventana debajo; la ventana termina antes de la cabeza de Filo
+      if (visible(camara)) lado.style.marginTop = Math.ceil(caja(camara).bottom + HUECO - caja(lado).top) + 'px';
+      const barra = document.querySelector('.charla');
+      let cab0 = cabezaDeFilo();
+      // celular bajito con la ilustración: si la ventana no entra encima de la cabeza, Filo baja (no se achica)
+      if (visible(ilu) && cab0 && caja(lado).right + HUECO > (cab0.left + cab0.right) / 2 - (cab0.right - cab0.left) * 0.3) {
+        const quiere = lado.dataset.tipo === 'resultados' ? caja(lado).top + 230 : caja(lado).bottom;
+        const fondo = barra ? caja(barra).top - HUECO : innerHeight - HUECO;
+        const bajar = Math.min(Math.max(0, fondo - cab0.bottom - 40), Math.max(0, quiere + HUECO - cab0.top));  // los ojos siempre se ven
+        if (bajar > 0) { ilu.style.transform = `translateY(${Math.ceil(bajar)}px)`; cab0 = cabezaDeFilo(); }
+      }
+      // solo la cara cuenta (el pelo de los costados puede quedar al lado de la ventana)
+      const cara = cab0 && { centro: (cab0.left + cab0.right) / 2, medio: (cab0.right - cab0.left) * (visible($('ilustracion')) ? 0.3 : 0.22) };
+      const pisaCara = cara && caja(lado).right + HUECO > cara.centro - cara.medio;
+      const botones = document.querySelector('.tres-botones'), bt = visible(botones) && caja(botones);
+      const pisaBotones = bt && bt.left < caja(lado).right + HUECO;
+      const tope = Math.min(barra ? caja(barra).top - HUECO : innerHeight - HUECO, pisaCara ? cab0.top - HUECO : Infinity, pisaBotones ? bt.top - HUECO : Infinity);
+      lado.style.setProperty('--alto-panel', Math.max(150, Math.floor(tope - caja(lado).top)) + 'px');
+    }
     globos.forEach((g) => { g.style.marginTop = ''; g.style.left = ''; g.style.maxWidth = ''; });
     if (avisoRopa) avisoRopa.style.marginTop = '';
     const conAviso = visible(avisoRopa);
     const activos = globos.filter(visible);
     if (!activos.length && !conAviso && !(celular && hayLado && visible(album))) return;
+    // celular con la columna de la izquierda: los globos van sobre Filo (a la derecha), no encima de la columna
+    if (columna) {
+      const izq = Math.max(...[lado, camara].filter(visible).map((e) => caja(e).right)) + HUECO, der = innerWidth - HUECO;
+      const base = caja(escenario);
+      activos.forEach((g) => {
+        const fijo = getComputedStyle(g).position === 'fixed';
+        g.style.left = ((izq + der) / 2 - (fijo ? 0 : base.left)) + 'px';
+        g.style.maxWidth = Math.floor(der - izq) + 'px';
+      });
+    }
     // el aviso de la ropa: si el album esta en su esquina, baja hasta dejar el hueco
     if (conAviso && visible(album)) {
       const A = caja(album), r = caja(avisoRopa);
@@ -119,7 +155,7 @@
       });
     }
     // celular: la ventana de arriba baja si algun globo la tapa
-    if (celular && hayLado) {
+    if (celular && hayLado && !columna) {
       const v = caja(lado);
       const tapan = (conAviso ? [avisoRopa, ...activos] : activos).map(caja);
       if (visible(album)) tapan.push(caja(album));

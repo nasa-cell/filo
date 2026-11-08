@@ -60,21 +60,59 @@
   const lado = $('lado'), celular = matchMedia('(max-width: 700px)');
   function correrConVideo() {
     if (!motor) return;
-    const conVideo = celular.matches && lado && !lado.hidden && lado.dataset.tipo === 'video'
+    // con algo en la columna de la izquierda (video, análisis, resultados, dibujo o cámara) Filo se corre a la derecha
+    const cam = $('camara'), conVideo = celular.matches && ((lado && !lado.hidden) || (cam && !cam.hidden))
       && !document.body.classList.contains('video-grande') && !document.body.classList.contains('ver-ambas');
-    motor.correr(conVideo ? 0.14 : 0);
+    motor.correr(conVideo ? 0.2 : 0);
   }
   if (lado) new MutationObserver(correrConVideo).observe(lado, { attributes: true, attributeFilter: ['hidden', 'data-tipo'] });
+  if ($('camara')) new MutationObserver(correrConVideo).observe($('camara'), { attributes: true, attributeFilter: ['hidden'] });
   new MutationObserver(correrConVideo).observe(document.body, { attributes: true, attributeFilter: ['class'] });
   celular.addEventListener('change', correrConVideo);
+
+  // emociones que Filo inventó en el taller: las baja, las suma y avisa la primera vez
+  let conocidas = [], primera = true;
+  try { const g = localStorage.getItem('filo_emo_conocidas'); primera = g === null; conocidas = JSON.parse(g || '[]'); } catch (e) { conocidas = []; }
+  function traerEmociones() {
+    fetch('/emociones-nuevas').then((r) => (r.ok ? r.json() : null)).then((d) => {
+      if (!d || !motor) return;
+      const lista = d.emociones || [];
+      motor.agregarEmociones(lista);
+      const nueva = lista.find((e) => !conocidas.includes(e.id));
+      if (primera) {  // la primera vez que abre la página en este equipo: no avisa de las que ya tenía
+        primera = false; conocidas = lista.map((e) => e.id);
+      } else if (nueva) {
+        conocidas.push(nueva.id);
+        estrenar(nueva);
+      } else return;
+      try { localStorage.setItem('filo_emo_conocidas', JSON.stringify(conocidas)); } catch (e) { /* sin memoria */ }
+    }).catch(() => {});
+  }
+  const abierta = Date.now();
+  function estrenar(e) {
+    const caja = $('estado');
+    const mostrar = () => {
+      // espera a que termine el saludo de bienvenida y a que no esté hablando ni con otro aviso
+      if (!mostrando || ultimo.hablar || motor.estado().hablando || Date.now() - abierta < 15000 || (caja && !caja.hidden)) return setTimeout(mostrar, 2000);
+      if (caja) {
+        caja.textContent = '✨ ¡Inventé una emoción nueva: ' + e.nombre + '!';
+        caja.dataset.tipo = 'emocion'; caja.hidden = false;
+        setTimeout(() => { if (caja.dataset.tipo === 'emocion') { caja.hidden = true; caja.dataset.tipo = ''; } }, 6000);
+      }
+      motor.reaccion(e.id, true);  // la muestra entera, sin que otra reacción la corte
+      setTimeout(() => { if (motor.estado().reaccion === e.id) motor.expresion(ultimo.expresion || 'normal'); }, 5500);
+    };
+    mostrar();
+  }
 
   function cargar() {
     if (cargando) return cargando;
     caja.append(carga);
-    cargando = import('../tres/filo-3d.js?v=6').then((m) => m.iniciar(caja, {
+    cargando = import('../tres/filo-3d.js?v=7').then((m) => m.iniciar(caja, {
       modelo: 'tres/filo.vrm?v=1', liviano,
       alAvance: (f) => { barra.style.width = Math.round(f * 100) + '%'; },
       alFondo: (l) => ponerFondo(mostrando ? l : null),
+      alAgotar: () => fetch('/emociones-agotadas', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: '{}' }).catch(() => {}),
     })).then((m) => {
       motor = m;
       carga.remove();
@@ -87,6 +125,8 @@
       if (ultimo.expresion) m.expresion(ultimo.expresion);
       m.encender(mostrando);
       correrConVideo();
+      traerEmociones();
+      setInterval(traerEmociones, 10 * 60 * 1000);
       return m;
     }).catch((e) => {
       console.error('Filo 3D no cargó:', e);
