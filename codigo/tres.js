@@ -59,7 +59,7 @@
   function cargar() {
     if (cargando) return cargando;
     caja.append(carga);
-    cargando = import('../tres/filo-3d.js?v=2').then((m) => m.iniciar(caja, {
+    cargando = import('../tres/filo-3d.js?v=3').then((m) => m.iniciar(caja, {
       modelo: 'tres/filo.vrm?v=1', liviano,
       alAvance: (f) => { barra.style.width = Math.round(f * 100) + '%'; },
       alFondo: (l) => ponerFondo(mostrando ? l : null),

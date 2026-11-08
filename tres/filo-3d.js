@@ -6,7 +6,7 @@ import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 import { VRMLoaderPlugin } from '@pixiv/three-vrm';
 import { crearSimbolos, crearFondos, crearImpacto, crearBoca, ACCESORIOS, dir, sobre, pegar, pieza, lazo, flor, arco, anillo, perfil, gorroBase, orejasPuntas, estrellaGeo, tubo } from './anime.js';
 import { ROPA, momentos } from './natural.js';
-import { crearAlas } from './alas.js?v=1';
+import { crearAlas } from './alas.js?v=2';
 
 export async function iniciar(caja, { modelo, alas: tamanoAlas = 'medianas', liviano = false, alAvance = () => {}, alFondo = () => {} } = {}) {
   const lienzo = document.createElement('canvas');
@@ -241,7 +241,8 @@ export async function iniciar(caja, { modelo, alas: tamanoAlas = 'medianas', liv
   }
 
   /* ---------- Alas: aletean según lo que siente ---------- */
-  const alas = crearAlas(crudo('upperChest') || crudo('chest'), { tamano: tamanoAlas });
+  const pechoAlas = crudo('upperChest') || crudo('chest');
+  const alas = crearAlas(pechoAlas, { tamano: tamanoAlas });
   const ALEGRES = ['reir', 'emocion', 'aplaudir', 'wow', 'idea', 'amor', 'orgullosa', 'hola', 'traviesa', 'guino', 'estirarse', 'animo', 'puntillas'];
   const BAJAS = ['triste', 'llorar', 'puchero', 'aburrida', 'bostezar', 'mareada'];
   const TIEMBLA = ['enojada', 'humo', 'fuego', 'miedo', 'alma', 'asco'];
@@ -446,7 +447,7 @@ export async function iniciar(caja, { modelo, alas: tamanoAlas = 'medianas', liv
     alas(n) { alas.tamano(n); },
     // para las pruebas
     estado: () => ({ msPaso: +medida.paso.toFixed(2), msDibujo: +medida.dibujo.toFixed(2), liviano, reaccion: reaccionId, cara, ropa: ropaOcasion, receta: recetaDia && recetaDia.id, auto, hablando }),
-    reaccion: id => lanzar(id),
+    reaccion: (id, mantener) => lanzar(id, mantener),
     lista: () => ({ emociones: EMOCIONES, gestos: Object.keys(GESTOS) }),
   };
 }
