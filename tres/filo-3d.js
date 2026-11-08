@@ -402,8 +402,9 @@ export async function iniciar(caja, { modelo, alas: tamanoAlas = 'medianas', liv
     const pl = PLANOS[plano], d = hacia('camD', pl[0] * zoom, 5, dt), oy = hacia('camY', plano === 'general' ? pl[1] : Math.max(-.5, pl[1] - (zoom - 1) * .3), 5, dt);
     // con video en el celular Filo se corre a la derecha y la cámara se aleja un poco para que entren las alas
     corridaS += (corrida - corridaS) * (1 - Math.exp(-dt * 6));
-    const dc = d * (1 + corridaS * 2), cx = -corridaS * 2 * dc * Math.tan(rad(cam.fov / 2)) * cam.aspect;
-    cam.position.set(cx, foco.y + .06 + oy, dc); cam.lookAt(cx, foco.y + oy, 0); cam.updateMatrixWorld(true);
+    // y baja un poco para que la cabeza quede debajo del video, no detrás
+    const dc = d * (1 + corridaS * 2), alto = 2 * dc * Math.tan(rad(cam.fov / 2)), cx = -corridaS * alto * cam.aspect, cy = corridaS * alto * 1.1;
+    cam.position.set(cx, foco.y + .06 + oy + cy, dc); cam.lookAt(cx, foco.y + oy + cy, 0); cam.updateMatrixWorld(true);
     if (reaccionId) crudo('head').updateWorldMatrix(true, false);
     const M = reaccionId ? MOM[ver(reaccionId)] : null;
     ponerSimbolos(M ? M.simbolos : null, crudo('head'), tiempo);
