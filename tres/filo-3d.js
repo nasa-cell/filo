@@ -6,8 +6,9 @@ import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 import { VRMLoaderPlugin } from '@pixiv/three-vrm';
 import { crearSimbolos, crearFondos, crearImpacto, crearBoca, ACCESORIOS, dir, sobre, pegar, pieza, lazo, flor, arco, anillo, perfil, gorroBase, orejasPuntas, estrellaGeo, tubo } from './anime.js';
 import { ROPA, momentos } from './natural.js';
+import { crearAlas } from './alas.js?v=1';
 
-export async function iniciar(caja, { modelo, liviano = false, alAvance = () => {}, alFondo = () => {} } = {}) {
+export async function iniciar(caja, { modelo, alas: tamanoAlas = 'medianas', liviano = false, alAvance = () => {}, alFondo = () => {} } = {}) {
   const lienzo = document.createElement('canvas');
   lienzo.className = 'tres-lienzo';
   caja.append(lienzo);
@@ -239,6 +240,21 @@ export async function iniciar(caja, { modelo, liviano = false, alAvance = () => 
     ajustarMechon();
   }
 
+  /* ---------- Alas: aletean según lo que siente ---------- */
+  const alas = crearAlas(crudo('upperChest') || crudo('chest'), { tamano: tamanoAlas });
+  const ALEGRES = ['reir', 'emocion', 'aplaudir', 'wow', 'idea', 'amor', 'orgullosa', 'hola', 'traviesa', 'guino', 'estirarse', 'animo', 'puntillas'];
+  const BAJAS = ['triste', 'llorar', 'puchero', 'aburrida', 'bostezar', 'mareada'];
+  const TIEMBLA = ['enojada', 'humo', 'fuego', 'miedo', 'alma', 'asco'];
+  function animoAlas() {
+    const id = reaccionId;
+    if (id === 'dormida' || cara === 'dormida') return { fuerza: 0, rapidez: .2 };
+    if (id && TIEMBLA.includes(id)) return { fuerza: .5, rapidez: 1.4, tiembla: 1 };
+    if (id === 'emocion' || id === 'aplaudir' || id === 'wow') return { fuerza: 1.6, rapidez: 1.8 };
+    if (id && ALEGRES.includes(id)) return { fuerza: 1, rapidez: 1.2 };
+    if (id && BAJAS.includes(id)) return { fuerza: .12, rapidez: .4 };
+    return hablando ? { fuerza: .55, rapidez: 1 } : { fuerza: .35, rapidez: .8 };
+  }
+
   /* ---------- Reacciones y gestos ---------- */
   const MOM = momentos(false);
   const ORDEN = ['fuego', 'vomito', 'vomitoVerde', 'humo', 'burbujas', 'alma', 'estornudo', 'baba', 'hola', 'hablar', 'pensar', 'reaccionar', 'reir', 'emocion', 'encoger', 'mirar', 'enojada', 'triste', 'amor', 'miedo', 'asco', 'orgullosa', 'guino', 'dormida', 'timida', 'confundida', 'idea', 'asentir', 'negar', 'bostezar', 'llorar', 'traviesa', 'aburrida', 'mareada', 'puchero', 'aplaudir', 'wow'];
@@ -368,6 +384,7 @@ export async function iniciar(caja, { modelo, liviano = false, alAvance = () => 
     vrm.scene.rotation.y = giro;
     // mirada
     crudo('head').updateWorldMatrix(true, false); crudo('head').getWorldPosition(mirada.position); mir.set(0, .07, 1); if (P && P.mira) mir.lerp(new THREE.Vector3(...P.mira), mz); mirada.position.add(mir);
+    alas.actualizar(dt, animoAlas());
     vrm.update(dt);
     for (const o of conCaras) { for (const n in morfos) { const i = o.morphTargetDictionary[n]; if (i === undefined) continue; const marca = o.uuid + n, ant = escritos[marca], act = o.morphTargetInfluences[i], base = ant && Math.abs(act - ant.t) < 1e-6 ? ant.b : act, t = Math.min(1, base + morfos[n]); o.morphTargetInfluences[i] = t; escritos[marca] = { t, b: base }; } }
     // encuadre: de la cintura arriba (zoom y giro lo cambian)
@@ -399,6 +416,9 @@ export async function iniciar(caja, { modelo, liviano = false, alAvance = () => 
 
   const cabezaEnPantalla = () => { const p = crudo('head').getWorldPosition(new THREE.Vector3()); p.y += .07; p.project(cam); const q = lienzo.getBoundingClientRect(); return { x: q.left + (p.x + 1) / 2 * q.width, y: q.top + (1 - p.y) / 2 * q.height, r: q.height * .16 / zoom }; };
 
+  // dónde están las alas en la pantalla (para tocarlas): un punto a cada lado de la espalda
+  const alasEnPantalla = () => { const q = lienzo.getBoundingClientRect(), base = (crudo('upperChest') || crudo('chest')).getWorldPosition(new THREE.Vector3()); return [-1, 1].map(l => { const p = base.clone(); p.x += l * .2; p.y += .1; p.applyAxisAngle(new THREE.Vector3(0, 1, 0), giro); p.project(cam); return { x: q.left + (p.x + 1) / 2 * q.width, y: q.top + (1 - p.y) / 2 * q.height, r: q.height * .12 / zoom }; }); };
+
   return {
     // misma forma que la ilustración: la página le habla igual a las dos
     expresion(n) {
@@ -410,7 +430,7 @@ export async function iniciar(caja, { modelo, liviano = false, alAvance = () => 
     hablar(si) { hablando = si; if (!si) nivelVoz = 0; },
     nivel(n) { nivelVoz = n; },
     cara: () => cara,
-    toque(zona) { lanzar(zona === 'cabeza' ? azar(['timida', 'amor', 'reir']) : zona === 'alas' ? 'enojada' : azar(['reaccionar', 'reir'])); },
+    toque(zona) { if (zona === 'alas') alas.tocar(); lanzar(zona === 'cabeza' ? azar(['timida', 'amor', 'reir']) : zona === 'alas' ? 'enojada' : azar(['reaccionar', 'reir'])); },
     lentes(si) { lentes.visible = !!si; },
     ropa(nombre) { ropaOcasion = nombre || null; vestir(); },
     ropaDia(receta) { recetaDia = receta || null; vestir(); },
@@ -422,7 +442,8 @@ export async function iniciar(caja, { modelo, liviano = false, alAvance = () => 
     encender(si) { encendida = !!si; },
     // para tocarla: ¿el dedo cayó en la cabeza o en el cuerpo?
     cabeza() { const c = cabezaEnPantalla(); return { left: c.x - c.r, right: c.x + c.r, top: c.y - c.r * 1.25, bottom: c.y + c.r * .55 }; },
-    zona(x, y) { const c = cabezaEnPantalla(); return Math.hypot(x - c.x, y - c.y) < c.r ? 'cabeza' : 'cuerpo'; },
+    zona(x, y) { const c = cabezaEnPantalla(); if (Math.hypot(x - c.x, y - c.y) < c.r) return 'cabeza'; const a = alasEnPantalla(); return a.some(p => Math.hypot(x - p.x, y - p.y) < p.r) ? 'alas' : 'cuerpo'; },
+    alas(n) { alas.tamano(n); },
     // para las pruebas
     estado: () => ({ msPaso: +medida.paso.toFixed(2), msDibujo: +medida.dibujo.toFixed(2), liviano, reaccion: reaccionId, cara, ropa: ropaOcasion, receta: recetaDia && recetaDia.id, auto, hablando }),
     reaccion: id => lanzar(id),
