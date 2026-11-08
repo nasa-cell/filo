@@ -6,6 +6,7 @@ import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 import { VRMLoaderPlugin } from '@pixiv/three-vrm';
 import { crearSimbolos, crearFondos, crearImpacto, crearBoca, ACCESORIOS, dir, sobre, pegar, pieza, lazo, flor, arco, anillo, perfil, gorroBase, orejasPuntas, estrellaGeo, tubo } from './anime.js';
 import { ROPA, momentos } from './natural.js';
+import { crearManos, VTUBER, REEMPLAZA, HABLANDO } from './manos.js';
 import { crearAlas } from './alas.js?v=2';
 
 export async function iniciar(caja, { modelo, alas: tamanoAlas = 'medianas', liviano = false, alAvance = () => {}, alFondo = () => {} } = {}) {
@@ -243,14 +244,14 @@ export async function iniciar(caja, { modelo, alas: tamanoAlas = 'medianas', liv
   /* ---------- Alas: aletean según lo que siente ---------- */
   const pechoAlas = crudo('upperChest') || crudo('chest');
   const alas = crearAlas(pechoAlas, { tamano: tamanoAlas });
-  const ALEGRES = ['reir', 'emocion', 'aplaudir', 'wow', 'idea', 'amor', 'orgullosa', 'hola', 'traviesa', 'guino', 'estirarse', 'animo', 'puntillas'];
+  const ALEGRES = ['reir', 'emocion', 'aplaudir', 'wow', 'idea', 'amor', 'orgullosa', 'hola', 'traviesa', 'guino', 'estirarse', 'animo', 'puntillas', 'v_yatta', 'v_mejillas', 'v_ganbaru', 'v_tuSenalar', 'v_saludo', 'v_corazon', 'v_gatita', 'v_paz', 'v_pulgar', 'v_gracias', 'v_abrazo', 'v_risaPanza'];
   const BAJAS = ['triste', 'llorar', 'puchero', 'aburrida', 'bostezar', 'mareada'];
-  const TIEMBLA = ['enojada', 'humo', 'fuego', 'miedo', 'alma', 'asco'];
+  const TIEMBLA = ['enojada', 'humo', 'fuego', 'miedo', 'alma', 'asco', 'v_panico'];
   function animoAlas() {
     const id = reaccionId;
     if (id === 'dormida' || cara === 'dormida') return { fuerza: 0, rapidez: .2 };
     if (id && TIEMBLA.includes(id)) return { fuerza: .5, rapidez: 1.4, tiembla: 1 };
-    if (id === 'emocion' || id === 'aplaudir' || id === 'wow') return { fuerza: 1.6, rapidez: 1.8 };
+    if (id === 'emocion' || id === 'aplaudir' || id === 'wow' || id === 'v_yatta') return { fuerza: 1.6, rapidez: 1.8 };
     if (id && ALEGRES.includes(id)) return { fuerza: 1, rapidez: 1.2 };
     if (id && BAJAS.includes(id)) return { fuerza: .12, rapidez: .4 };
     return hablando ? { fuerza: .55, rapidez: 1 } : { fuerza: .35, rapidez: .8 };
@@ -285,6 +286,12 @@ export async function iniciar(caja, { modelo, alas: tamanoAlas = 'medianas', liv
     MOM[id] = { nombre: '✋ ' + g.nombre, plano: 'medio', tasa: 2.5, pose: t => { const a = curva(t), r = g.f(t, a), h = { ...baseG(t, .7), ...r.huesos }; for (const k in r.extra || {}) { if (!h[k]) h[k] = [0, 0, 0]; suma(h, k, r.extra[k]); } return { sube: r.sube || 0, huesos: h, mira: r.mira, cara: r.cara || {} }; } };
     DURA[id] = DG; ORDEN.push(id);
   }
+  // manos de verdad: la mano va a un punto, choca con el cuerpo en vez de atravesarlo, dedos con postura;
+  // reacciones de VTuber con movimiento de anime (fuerza media)
+  const FUERZA = 1;
+  const manos = crearManos(vrm);
+  for (const [id, r] of Object.entries(VTUBER)) { MOM['v_' + id] = { ...r, pose: t => r.pose(t, FUERZA) }; DURA['v_' + id] = 5.5; if (!Object.values(REEMPLAZA).includes(id)) ORDEN.push('v_' + id); }
+  const ver = id => (id && REEMPLAZA[id] ? 'v_' + REEMPLAZA[id] : id);
   const EMOCIONES = ORDEN.filter(x => !(x in GESTOS));
   let reaccionId = null, ultimaId = null, inicioR = 0, finReaccion = 0, reloj = 0, mezcla3 = 0, sostener = false;
   function lanzar(id, mantener = false) {
@@ -294,14 +301,15 @@ export async function iniciar(caja, { modelo, alas: tamanoAlas = 'medianas', liv
     alFondo(fondoActual());
   }
   function soltar() { if (!reaccionId) return; sostener = false; finReaccion = Math.min(finReaccion, reloj + .35); }
-  const fondoActual = () => { const f = reaccionId && MOM[reaccionId].fondo, t = f && FONDOS[f]; return t && t.image ? t.image : null; };
+  const fondoActual = () => { const f = reaccionId && MOM[ver(reaccionId)].fondo, t = f && FONDOS[f]; return t && t.image ? t.image : null; };
 
   // las caras que elige Gemini (las mismas de la ilustración) pasadas a reacciones 3D; cada una tiene varias para no repetir
   const CARAS = {
-    feliz: ['reir', 'asentir', 'aplaudir', 'traviesa', 'guino'], risa: ['reir', 'reir', 'aplaudir'], emocionada: ['emocion', 'aplaudir', 'idea', 'wow'],
-    sorpresa: ['wow', 'reaccionar', 'alma'], pensando: ['pensar'], enojada: ['enojada', 'enojada', 'humo', 'fuego'], triste: ['triste', 'llorar'],
-    pena: ['puchero', 'triste'], miedo: ['miedo', 'miedo', 'alma'], asco: ['asco', 'asco', 'vomitoVerde'], timida: ['timida'], guino: ['guino', 'traviesa'],
-    amor: ['amor', 'amor', 'baba'], orgullosa: ['orgullosa'], celosa: ['puchero', 'enojada'], dormida: ['dormida'],
+    feliz: ['reir', 'asentir', 'aplaudir', 'traviesa', 'guino', 'v_paz', 'v_pulgar', 'v_saludo', 'v_gatita'], risa: ['reir', 'aplaudir', 'v_risaPanza', 'v_risaPanza'],
+    emocionada: ['emocion', 'aplaudir', 'idea', 'wow', 'v_yatta', 'v_ganbaru'],
+    sorpresa: ['wow', 'reaccionar', 'alma', 'v_panico', 'v_tuSenalar'], pensando: ['pensar', 'v_menton'], enojada: ['enojada', 'enojada', 'humo', 'fuego'], triste: ['triste', 'llorar'],
+    pena: ['puchero', 'triste', 'v_taparCara'], miedo: ['miedo', 'miedo', 'alma', 'v_panico'], asco: ['asco', 'asco', 'vomitoVerde'], timida: ['timida', 'v_mejillas', 'v_taparCara', 'unas'], guino: ['guino', 'traviesa', 'v_paz'],
+    amor: ['amor', 'baba', 'v_corazon', 'v_abrazo', 'v_mejillas'], orgullosa: ['orgullosa', 'v_yatta', 'v_pulgar'], celosa: ['puchero', 'enojada'], dormida: ['dormida'],
   };
   const SOSTENIDAS = ['pensando', 'dormida'];
   let cara = 'normal';
@@ -344,7 +352,7 @@ export async function iniciar(caja, { modelo, alas: tamanoAlas = 'medianas', liv
     autoPaso(ahora);
     mezcla3 += ((reaccionId ? 1 : 0) - mezcla3) * (1 - Math.exp(-dt * 11));
     mezclaHabla += ((hablando && !reaccionId ? 1 : 0) - mezclaHabla) * (1 - Math.exp(-dt * 6));
-    const P = ultimaId && mezcla3 > .002 ? MOM[ultimaId].pose(reloj - inicioR) : null, C = P && P.cara || {}, M2 = P && P.morfos || {}, mz = mezcla3;
+    const P = ultimaId && mezcla3 > .002 ? MOM[ver(ultimaId)].pose(reloj - inicioR) : null, C = P && P.cara || {}, M2 = P && P.morfos || {}, mz = mezcla3;
     // boca: con la voz de verdad se abre según el volumen; sin medida se inventa una apertura que cambia sola
     let meta = 0;
     if (hablando) {
@@ -376,13 +384,15 @@ export async function iniciar(caja, { modelo, alas: tamanoAlas = 'medianas', liv
     const b1 = Math.sin(tiempo * 1.2), b2 = Math.sin(tiempo * 1 + 2);
     fija('leftUpperArm', 0, -5 - 1.5 * b1, -73 - 1.2 * b1); fija('rightUpperArm', 0, 5 + 1.5 * b2, 73 + 1.2 * b2); fija('leftLowerArm', 0, -13 - 1.5 * b2, 0); fija('rightLowerArm', 0, 13 + 1.5 * b1, 0);
     // al hablar mueve las manos (sin reacción encima)
-    if (mezclaHabla > .002) { const H = MOM.hablar.pose(tiempo); for (const [n, g] of Object.entries(H.huesos)) { const x = nodo(n); if (!x) continue; tocados.add(n); eu.set(rad(g[0]), rad(g[1]), rad(g[2])); qTmp.setFromEuler(eu); x.quaternion.slerp(qTmp, mezclaHabla); } }
+    const HM = mezclaHabla > .002 ? HABLANDO(tiempo, FUERZA) : null;
+    if (mezclaHabla > .002) { const H = MOM.hablar.pose(tiempo); Object.assign(H.huesos, HM.huesos); for (const [n, g] of Object.entries(H.huesos)) { const x = nodo(n); if (!x) continue; tocados.add(n); eu.set(rad(g[0]), rad(g[1]), rad(g[2])); qTmp.setFromEuler(eu); x.quaternion.slerp(qTmp, mezclaHabla); } }
     if (P) for (const [n, g] of Object.entries(P.huesos)) { const x = nodo(n); if (!x) continue; tocados.add(n); eu.set(rad(g[0]), rad(g[1]), rad(g[2])); qTmp.setFromEuler(eu); x.quaternion.slerp(qTmp, mz); }
     vrm.scene.position.y = (P && P.sube || 0) * mz;
     // giro
     const u = Math.min(1, (ahora - giroT0) / 2600);
     if (u < 1) giro = giroDesde + (giroHasta - giroDesde) * curvaGiro(u);
     vrm.scene.rotation.y = giro;
+    vrm.scene.updateMatrixWorld(true); manos.aplicar(P || HM, P ? mz : mezclaHabla, dt); for (const n of manos.tocados) tocados.add(n);
     // mirada
     crudo('head').updateWorldMatrix(true, false); crudo('head').getWorldPosition(mirada.position); mir.set(0, .07, 1); if (P && P.mira) mir.lerp(new THREE.Vector3(...P.mira), mz); mirada.position.add(mir);
     alas.actualizar(dt, animoAlas());
@@ -392,7 +402,7 @@ export async function iniciar(caja, { modelo, alas: tamanoAlas = 'medianas', liv
     const pl = PLANOS[plano], d = hacia('camD', pl[0] * zoom, 5, dt), oy = hacia('camY', plano === 'general' ? pl[1] : Math.max(-.5, pl[1] - (zoom - 1) * .3), 5, dt);
     cam.position.set(0, foco.y + .06 + oy, d); cam.lookAt(0, foco.y + oy, 0); cam.updateMatrixWorld(true);
     if (reaccionId) crudo('head').updateWorldMatrix(true, false);
-    const M = reaccionId ? MOM[reaccionId] : null;
+    const M = reaccionId ? MOM[ver(reaccionId)] : null;
     ponerSimbolos(M ? M.simbolos : null, crudo('head'), tiempo);
     ponerBoca(M && P ? P.boca || null : null, crudo('head'), dt, cam);
     ponerImpacto(!!(M && (M.impacto || reaccionId === 'reaccionar')), tiempo, reaccionId);
