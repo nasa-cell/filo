@@ -347,3 +347,46 @@ body > .grande { position: fixed; inset: 0; z-index: 8; background: rgba(5, 15, 
 .aviso-ropa small { display: block; margin-top: 4px; font-size: .8rem; font-weight: 700; opacity: .9; }
 .aviso-ropa[data-estado="lista"] .aviso-ropa-barra i { background: #4ade80; }
 @media (max-width: 560px) { .aviso-ropa { top: 6px; left: 6px; padding: 7px 11px 8px; font-size: .9rem; width: min(240px, calc(100vw - 12px)); } }
+
+/* ---------- celular: botones ordenados y separados; con video, «lado a lado» ----------
+   Arriba: fila 1 «Filo» y Ver; fila 2 tres botones iguales (YouTube, Buscar, Auto 3D) con textos cortos.
+   Con un video: el video arriba a la izquierda y Filo grande a la derecha, de alto completo. */
+.arriba .corto { display: none; }
+@media (max-width: 700px) {
+  .arriba .largo { display: none; }
+  .arriba .corto { display: inline; }
+  .arriba { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; padding: 8px 12px 0; align-items: center; }
+  .arriba h1 { grid-column: 1; font-size: 1.2rem; }
+  .arriba .estilos { grid-column: 2 / 4; justify-self: end; display: flex; gap: 6px; align-items: center; }
+  .arriba .estilos .vista { height: 34px; padding: 0 10px; font-size: .8rem; white-space: nowrap; }
+  .arriba > .vista { width: 100%; min-width: 0; height: 36px; padding: 0 6px; font-size: .8rem; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; margin: 0; }
+  .tele-barra { gap: 10px; padding: 7px 10px; }
+  .tele-barra .mini { width: 36px; height: 36px; flex: 0 0 auto; }
+  .tele-nombre { font-size: .8rem; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; flex: 1; }
+  .charla { column-gap: 8px; row-gap: 8px; grid-template-columns: minmax(0, 1fr) repeat(4, auto); }
+
+  .escenario:has(> .lado[data-tipo="video"]:not([hidden])) { grid-template-rows: minmax(0, 1fr); }
+  .escenario:has(> .lado[data-tipo="video"]:not([hidden])) > .lado { grid-row: 1; grid-column: 1 / -1; width: 60%; justify-self: start; align-self: start; z-index: 4; }
+  .escenario:has(> .lado[data-tipo="video"]:not([hidden])) > #filo,
+  .escenario:has(> .lado[data-tipo="video"]:not([hidden])) > #ilustracion { grid-row: 1; }
+  /* ilustración: va a la derecha; la 3D usa todo el ancho y la cámara corre a Filo (codigo/tres.js) */
+  .escenario:has(> .lado[data-tipo="video"]:not([hidden])) > #ilustracion { margin-left: 28%; width: 72%; }
+  .ver-ambas .escenario:has(> .lado[data-tipo="video"]:not([hidden])) > #ilustracion { grid-column: 1; margin: 0; width: 100%; align-self: end; height: 62%; }
+  .ver-ambas .escenario:has(> .lado[data-tipo="video"]:not([hidden])) > #filo { grid-column: 2; }
+  /* el video es angosto: los 4 botones de la barra entran bien separados (el título se acorta) */
+  .escenario:has(> .lado[data-tipo="video"]:not([hidden])) .tele-barra { gap: 8px; padding: 6px 8px; }
+  .escenario:has(> .lado[data-tipo="video"]:not([hidden])) .tele-barra .mini { width: 34px; height: 34px; }
+  /* el álbum baja a la esquina de abajo para no quedar debajo del video */
+  .escenario:has(> .lado[data-tipo="video"]:not([hidden])) > .album { top: auto; bottom: 8px; }
+}
+/* celulares angostos: «Saludar» pasa a botón redondo como los demás (si no, la palabra no cabe) */
+@media (max-width: 380px) {
+  #b-hablar { width: 42px; height: 42px; padding: 0; border-radius: 50%; font-size: 1.1rem; justify-self: start; }
+  #b-hablar .texto-saludar { display: none; }
+  .charla { grid-template-columns: repeat(5, auto); justify-content: space-between; }
+
+}
+@media (max-width: 345px) {
+  .arriba > .vista, .arriba .estilos .vista { font-size: .74rem; padding: 0 7px; }
+  .arriba .rotulo { display: none; }
+}

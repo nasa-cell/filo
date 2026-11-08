@@ -14,7 +14,8 @@
 .fondo .fondo-tres { position: absolute; inset: 0; background-size: cover; background-position: center; opacity: 0; transition: opacity .45s ease; }
 .fondo .fondo-tres.si { opacity: 1; }
 @media (max-width: 700px) {
-  .tres-botones { right: 4px; gap: 6px; }
-  .tres-botones button { width: 40px; height: 40px; font-size: 18px; }
-  .ver-ambas .tres-botones { right: 2px; }
+  /* en fila abajo a la derecha, bien separados */
+  .tres-botones { top: auto; bottom: 10px; right: 10px; transform: none; grid-auto-flow: column; gap: 12px; }
+  .tres-botones button { width: 38px; height: 38px; font-size: 16px; }
+  .ver-ambas .tres-botones { right: 6px; gap: 8px; grid-auto-flow: row; bottom: 10px; }
 }

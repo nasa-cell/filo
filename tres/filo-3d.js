@@ -14,7 +14,7 @@ export async function iniciar(caja, { modelo, alas: tamanoAlas = 'medianas', liv
   lienzo.className = 'tres-lienzo';
   caja.append(lienzo);
   const r = new THREE.WebGLRenderer({ canvas: lienzo, alpha: true, antialias: !liviano, powerPreference: liviano ? 'low-power' : 'default' });
-  const nitidez = () => Math.min(devicePixelRatio || 1, liviano ? 1.25 : 2);
+  const nitidez = () => Math.min(devicePixelRatio || 1, 2);  // también en celulares de 4 GB: con menos se ve pixelada
   r.setPixelRatio(nitidez()); r.outputColorSpace = THREE.SRGBColorSpace;
   const esc = new THREE.Scene(), cam = new THREE.PerspectiveCamera(24, 1, .1, 30);
   esc.add(new THREE.HemisphereLight(0xffffff, 0xdfe6f5, 1.15));
@@ -320,7 +320,7 @@ export async function iniciar(caja, { modelo, alas: tamanoAlas = 'medianas', liv
   const qTmp = new THREE.Quaternion(), qUno = new THREE.Quaternion(), mir = new THREE.Vector3();
   const morfos = {}, escritos = {}, tocados = new Set();
   const PLANOS = { cintura: [1.9, -.1], general: [3.9, -.5] };
-  let plano = 'cintura', zoom = 1;
+  let plano = 'cintura', zoom = 1, corrida = 0, corridaS = 0;
   let parpadeo = 0, proxParpadeo = 2, tiempo = 0, hablando = false, nivelVoz = 0, bocaFalsa = 0, bocaHasta = 0, mezclaHabla = 0;
   let auto = true, quietoDesde = 0, proxima = 0, bolsa = [], bolsaG = [], turnoGesto = false, anteriorAuto = null;
   const hacia = (k, v, vel, dt) => { suave[k] += (v - suave[k]) * (1 - Math.exp(-dt * vel)); return suave[k]; };
@@ -400,7 +400,10 @@ export async function iniciar(caja, { modelo, alas: tamanoAlas = 'medianas', liv
     for (const o of conCaras) { for (const n in morfos) { const i = o.morphTargetDictionary[n]; if (i === undefined) continue; const marca = o.uuid + n, ant = escritos[marca], act = o.morphTargetInfluences[i], base = ant && Math.abs(act - ant.t) < 1e-6 ? ant.b : act, t = Math.min(1, base + morfos[n]); o.morphTargetInfluences[i] = t; escritos[marca] = { t, b: base }; } }
     // encuadre: de la cintura arriba (zoom y giro lo cambian)
     const pl = PLANOS[plano], d = hacia('camD', pl[0] * zoom, 5, dt), oy = hacia('camY', plano === 'general' ? pl[1] : Math.max(-.5, pl[1] - (zoom - 1) * .3), 5, dt);
-    cam.position.set(0, foco.y + .06 + oy, d); cam.lookAt(0, foco.y + oy, 0); cam.updateMatrixWorld(true);
+    // con video en el celular Filo se corre a la derecha y la cámara se aleja un poco para que entren las alas
+    corridaS += (corrida - corridaS) * (1 - Math.exp(-dt * 6));
+    const dc = d * (1 + corridaS * 2), cx = -corridaS * 2 * dc * Math.tan(rad(cam.fov / 2)) * cam.aspect;
+    cam.position.set(cx, foco.y + .06 + oy, dc); cam.lookAt(cx, foco.y + oy, 0); cam.updateMatrixWorld(true);
     if (reaccionId) crudo('head').updateWorldMatrix(true, false);
     const M = reaccionId ? MOM[ver(reaccionId)] : null;
     ponerSimbolos(M ? M.simbolos : null, crudo('head'), tiempo);
@@ -451,6 +454,7 @@ export async function iniciar(caja, { modelo, alas: tamanoAlas = 'medianas', liv
     girar() { giroDesde = giro; giroHasta = Math.round(giro / (Math.PI * 2)) * Math.PI * 2 + Math.PI * 2; giroT0 = performance.now(); plano = 'general'; clearTimeout(volverPlano); volverPlano = setTimeout(() => { plano = 'cintura'; }, 3400); },
     automatica(si) { auto = !!si; if (!auto && reaccionId && !sostener) soltar(); },
     encender(si) { encendida = !!si; },
+    correr(f) { corrida = f || 0; },
     // para tocarla: ¿el dedo cayó en la cabeza o en el cuerpo?
     cabeza() { const c = cabezaEnPantalla(); return { left: c.x - c.r, right: c.x + c.r, top: c.y - c.r * 1.25, bottom: c.y + c.r * .55 }; },
     zona(x, y) { const c = cabezaEnPantalla(); if (Math.hypot(x - c.x, y - c.y) < c.r) return 'cabeza'; const a = alasEnPantalla(); return a.some(p => Math.hypot(x - p.x, y - p.y) < p.r) ? 'alas' : 'cuerpo'; },

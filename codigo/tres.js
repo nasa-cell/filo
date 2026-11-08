@@ -45,7 +45,7 @@
   const bAuto = document.createElement('button');
   bAuto.type = 'button'; bAuto.id = 'b-auto'; bAuto.className = 'vista b-auto';
   bAuto.title = '3D automática: si nadie le habla, Filo se mueve y reacciona sola';
-  bAuto.textContent = '✨ 3D automática';
+  bAuto.innerHTML = '✨ <span class="largo">3D automática</span><span class="corto">Auto 3D</span>';
   bAuto.setAttribute('aria-pressed', auto);
   bAuto.hidden = true;
   ($('b-busqueda') || $('b-youtube')).after(bAuto);
@@ -56,10 +56,22 @@
     if (motor) motor.automatica(auto);
   });
 
+  // celular con video abierto (diseño «lado a lado»): el video va arriba a la izquierda y Filo se corre a la derecha
+  const lado = $('lado'), celular = matchMedia('(max-width: 700px)');
+  function correrConVideo() {
+    if (!motor) return;
+    const conVideo = celular.matches && lado && !lado.hidden && lado.dataset.tipo === 'video'
+      && !document.body.classList.contains('video-grande') && !document.body.classList.contains('ver-ambas');
+    motor.correr(conVideo ? 0.14 : 0);
+  }
+  if (lado) new MutationObserver(correrConVideo).observe(lado, { attributes: true, attributeFilter: ['hidden', 'data-tipo'] });
+  new MutationObserver(correrConVideo).observe(document.body, { attributes: true, attributeFilter: ['class'] });
+  celular.addEventListener('change', correrConVideo);
+
   function cargar() {
     if (cargando) return cargando;
     caja.append(carga);
-    cargando = import('../tres/filo-3d.js?v=4').then((m) => m.iniciar(caja, {
+    cargando = import('../tres/filo-3d.js?v=5').then((m) => m.iniciar(caja, {
       modelo: 'tres/filo.vrm?v=1', liviano,
       alAvance: (f) => { barra.style.width = Math.round(f * 100) + '%'; },
       alFondo: (l) => ponerFondo(mostrando ? l : null),
@@ -74,6 +86,7 @@
       if (ultimo.hablar) m.hablar(true);
       if (ultimo.expresion) m.expresion(ultimo.expresion);
       m.encender(mostrando);
+      correrConVideo();
       return m;
     }).catch((e) => {
       console.error('Filo 3D no cargó:', e);
