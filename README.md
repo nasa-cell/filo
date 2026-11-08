@@ -1,11 +1,17 @@
 # Filo
 
-Filo, la filolial de *El héroe del escudo*, en 2D: conversa contigo con su voz, cambia de cara según lo que siente, dibuja, pone videos de YouTube, busca en internet y te recuerda de un día para otro.
+Filo, la filolial de *El héroe del escudo*, en ilustración 2D y en 3D: conversa contigo con su voz, cambia de cara según lo que siente, dibuja, pone videos de YouTube, busca en internet y te recuerda de un día para otro.
 
 ## Qué hace
 
 - **Conversa con voz.** Le escribes o le hablas por el micrófono y responde con la voz de Filo (Fish Audio). El micrófono queda encendido hasta que lo apagues y puedes hacer pausas para pensar.
-- **Tiene emociones.** Feliz, risa, emocionada, amor, tímida, triste, pena, miedo, asco, enojada, celosa, orgullosa, dormida y más, en dos estilos: ilustración y dibujo. Ninguna emoción le dura más de 10 segundos.
+- **Tiene emociones.** Feliz, risa, emocionada, amor, tímida, triste, pena, miedo, asco, enojada, celosa, orgullosa, dormida y más, en dos estilos: ilustración y 3D. Ninguna emoción le dura más de 10 segundos.
+- **Filo en 3D.** Elige «3D» o «Las dos» arriba. Es un modelo VRM que pone las caras que elige la IA (37 reacciones, cada una con su fondo) y mueve manos y cuerpo al hablar.
+  - **✨ 3D automática:** si nadie le habla, se mueve y reacciona sola.
+  - **Botones:** acercar, alejar, volver al tamaño normal y 🔄 girar el cuerpo entero. También se puede girar arrastrándola.
+  - **Alas realistas:** tienen cuerpo y plumas, aletean según lo que siente y se pliegan cuando duerme.
+  - **Ropa:** se pone la ropa del día, la de los modos YouTube y búsqueda, la de ocasión y la que crea cuando le pides «ponte…».
+  - **Celulares de 4 GB:** dibuja con menos nitidez para no trabarse.
 - **Reacciona al tocarla.** En la cabeza se pone roja y le salen corazones; si le tocas las alas tres veces, se enoja; en el cuerpo le dan cosquillas.
 - **Dibuja, pone videos y busca.** «Dibújame un gato», «pon la canción RISE», «busca el clima de Lima». Los dibujos van a un álbum con hasta 500 imágenes.
 - **Te recuerda.** Guarda tu nombre, tus gustos y lo que le cuentas, y al volver te pregunta por eso. Es una sola memoria y un solo álbum para el PC, el celular y la página publicada.
