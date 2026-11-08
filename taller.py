@@ -17,6 +17,7 @@ import time
 import unicodedata
 
 import acciones
+import emociones
 import memoria
 import vestuario
 
@@ -692,6 +693,7 @@ class Taller:
         self.voz_fish = voz_fish      # (texto, emocion) -> bytes mp3
         self.ultimo_uso = ultimo_uso  # () -> hora del ultimo pedido del Maestro
         self.pausa = {}               # tarea -> hora hasta la que no se reintenta (si fallo)
+        self.solo_emociones = False   # pruebas: solo inventa emociones
 
     def empezar(self):
         threading.Thread(target=self._bucle, daemon=True).start()
@@ -700,12 +702,27 @@ class Taller:
         time.sleep(20)
         while True:
             time.sleep(15)
-            if time.time() - self.ultimo_uso() < LIBRE or not acciones.credenciales_nube():
+            if time.time() - self.ultimo_uso() < LIBRE:
                 continue
             try:
-                self.un_paso()
+                hecho = self.paso_emocion()
+                if not hecho and acciones.credenciales_nube() and not self.solo_emociones:
+                    self.un_paso()
             except Exception as e:
                 print('taller:', str(e)[:200], flush=True)
+
+    def paso_emocion(self):
+        """Si Filo ya mostró todas sus emociones, inventa una nueva (máximo 1 por día)."""
+        if not self._puede('emocion') or not emociones.hace_falta(memoria.leer(MAESTRO)):
+            return None
+        try:
+            hecho = emociones.crear(self.pedir_json)
+            if hecho:
+                print('taller:', hecho, flush=True)
+            return hecho
+        except Exception as e:
+            self._fallo('emocion', 30)
+            raise RuntimeError('no pude inventar la emoción: ' + str(e)[:120])
 
     def _puede(self, tarea):
         return self.pausa.get(tarea, 0) < time.time()

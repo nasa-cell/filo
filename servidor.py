@@ -20,6 +20,7 @@ import contextvars
 import random
 import threading
 import memoria
+import emociones
 import taller
 
 CARPETA = os.path.dirname(os.path.abspath(__file__))
@@ -1020,6 +1021,7 @@ class Manejador(SimpleHTTPRequestHandler):
             '/ropa-crear': lambda d: taller.crear_pedido(d, lambda tarea, texto: pedir_json(tarea, texto, sin_groq=True, max_tokens=1200)),
             '/ropa-frase-dicha': taller.ropa_frase_dicha,
             '/frase-dicha': taller.frase_dicha,
+            '/emociones-agotadas': emociones.agotadas,
             '/presente': presente,
             '/me-voy': me_voy,
             '/al-volver': al_volver,
@@ -1057,6 +1059,12 @@ class Manejador(SimpleHTTPRequestHandler):
             return self.enviar_json(401, {'error': 'falta la contraseña'})
         pedido_get = urllib.parse.parse_qs(ruta.query)
         anotar_uso(ruta.path)
+        if ruta.path == '/emociones-nuevas':
+            try:
+                return self.enviar_json(200, emociones.lista())
+            except Exception as e:
+                print(ruta.path, 'fallo:', str(e)[:200])
+                return self.enviar_json(502, {'error': 'no se pudo'})
         if ruta.path in ('/ropa-dia', '/frases-nuevas'):
             try:
                 return self.enviar_json(200, taller.ropa_del_dia() if ruta.path == '/ropa-dia' else taller.frases_nuevas())
@@ -1119,9 +1127,11 @@ if __name__ == '__main__':
         address_family = socket.AF_INET6
     # el taller: cuando nadie la usa, Filo graba frases y crea atuendos (pide a Gemini para no gastar el cupo de Groq)
     threading.Thread(target=vigilar_pestanas, daemon=True).start()
-    if not os.environ.get('FILO_SIN_TALLER'):  # para pruebas: sin taller
-        taller.Taller(lambda tarea, texto: pedir_json(tarea, texto, sin_groq=True, max_tokens=1200), voz_fish,
-                      lambda: ULTIMO_USO[0]).empezar()
+    if not os.environ.get('FILO_SIN_TALLER') or os.environ.get('FILO_PROBAR_EMOCIONES'):  # pruebas: sin taller, o solo emociones
+        tal = taller.Taller(lambda tarea, texto: pedir_json(tarea, texto, sin_groq=True, max_tokens=1200), voz_fish,
+                            lambda: ULTIMO_USO[0])
+        tal.solo_emociones = bool(os.environ.get('FILO_SIN_TALLER'))
+        tal.empezar()
     if EN_LA_NUBE:
         ThreadingHTTPServer(('0.0.0.0', PUERTO), Manejador).serve_forever()
     try:

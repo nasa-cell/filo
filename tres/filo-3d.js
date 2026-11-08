@@ -6,10 +6,10 @@ import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 import { VRMLoaderPlugin } from '@pixiv/three-vrm';
 import { crearSimbolos, crearFondos, crearImpacto, crearBoca, ACCESORIOS, dir, sobre, pegar, pieza, lazo, flor, arco, anillo, perfil, gorroBase, orejasPuntas, estrellaGeo, tubo } from './anime.js';
 import { ROPA, momentos } from './natural.js';
-import { crearManos, VTUBER, REEMPLAZA, HABLANDO } from './manos.js';
+import { crearManos, VTUBER, REEMPLAZA, HABLANDO, desdeReceta } from './manos.js?v=2';
 import { crearAlas } from './alas.js?v=2';
 
-export async function iniciar(caja, { modelo, alas: tamanoAlas = 'medianas', liviano = false, alAvance = () => {}, alFondo = () => {} } = {}) {
+export async function iniciar(caja, { modelo, alas: tamanoAlas = 'medianas', liviano = false, alAvance = () => {}, alFondo = () => {}, alAgotar = () => {} } = {}) {
   const lienzo = document.createElement('canvas');
   lienzo.className = 'tres-lienzo';
   caja.append(lienzo);
@@ -294,8 +294,22 @@ export async function iniciar(caja, { modelo, alas: tamanoAlas = 'medianas', liv
   const ver = id => (id && REEMPLAZA[id] ? 'v_' + REEMPLAZA[id] : id);
   const EMOCIONES = ORDEN.filter(x => !(x in GESTOS));
   let reaccionId = null, ultimaId = null, inicioR = 0, finReaccion = 0, reloj = 0, mezcla3 = 0, sostener = false;
+  // cuenta qué emociones ya mostró; cuando mostró todas sin repetir, avisa (el taller inventa una nueva)
+  const vistas = new Set();
+  try { for (const id of JSON.parse(localStorage.getItem('filo_vistas3d') || '[]')) vistas.add(id); } catch (e) { /* sin memoria */ }
+  let avisoAgotar = false;
+  function anotarVista(id) {
+    if (!EMOCIONES.includes(id) || vistas.has(id)) return;
+    vistas.add(id);
+    try { localStorage.setItem('filo_vistas3d', JSON.stringify([...vistas])); } catch (e) { /* sin memoria */ }
+    revisarAgotadas();
+  }
+  function revisarAgotadas() {
+    if (!avisoAgotar && EMOCIONES.every(x => vistas.has(x))) { avisoAgotar = true; alAgotar(); }
+  }
   function lanzar(id, mantener = false) {
     if (!MOM[id]) return;
+    anotarVista(id);
     if (reaccionId === id) { finReaccion = Math.max(finReaccion, reloj + (DURA[id] || 5)); sostener = mantener; return; }
     reaccionId = ultimaId = id; inicioR = reloj; finReaccion = reloj + (DURA[id] || 5); sostener = mantener;
     alFondo(fondoActual());
@@ -463,6 +477,20 @@ export async function iniciar(caja, { modelo, alas: tamanoAlas = 'medianas', liv
     // para las pruebas
     estado: () => ({ msPaso: +medida.paso.toFixed(2), msDibujo: +medida.dibujo.toFixed(2), liviano, reaccion: reaccionId, cara, ropa: ropaOcasion, receta: recetaDia && recetaDia.id, auto, hablando }),
     reaccion: (id, mantener) => lanzar(id, mantener),
-    lista: () => ({ emociones: EMOCIONES, gestos: Object.keys(GESTOS) }),
+    lista: () => ({ emociones: EMOCIONES, gestos: Object.keys(GESTOS), vistas: EMOCIONES.filter(x => vistas.has(x)).length, nuevas: EMOCIONES.filter(x => MOM[x].nueva) }),
+    // emociones que inventó el taller: se suman a las suyas y a su ánimo; devuelve las que no tenía
+    agregarEmociones(lista) {
+      const agregadas = [];
+      for (const r of lista || []) {
+        if (!r || !r.id || MOM[r.id]) continue;
+        const M = desdeReceta(r);
+        MOM[r.id] = { ...M, pose: t => M.pose(t, FUERZA) }; DURA[r.id] = 5; ORDEN.push(r.id); EMOCIONES.push(r.id);
+        (CARAS[r.animo] || CARAS.feliz).push(r.id);
+        agregadas.push(r.id);
+      }
+      if (agregadas.length) avisoAgotar = false;
+      revisarAgotadas();
+      return agregadas;
+    },
   };
 }

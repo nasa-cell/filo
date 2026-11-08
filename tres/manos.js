@@ -291,3 +291,45 @@ export const HABLANDO = (t, k) => {
 };
 // gestos de hoy que se reemplazan por la versión con manos de verdad
 export const REEMPLAZA = { aplaudir: 'aplaudir', unas: 'pecho' };
+
+/* ---------- Emociones nuevas que inventa el taller: se arman solo con piezas probadas ---------- */
+// lugares de la mano izquierda (la derecha va en espejo): punto de la palma respecto del pecho, hacia dónde
+// apuntan los dedos y hacia dónde mira la palma (los mismos de las reacciones de arriba)
+const LUGAR = {
+  cadera: { p: [.15, -.13, .01], dedo: [-.1, -.5, 1], palma: [-1, 0, 0], codo: [1, 0, -.6] },
+  pecho: { p: [.035, .085, .095], dedo: [-.75, .62, .1], palma: [0, 0, -1] },
+  corazon: { p: [.045, .13, .24], dedo: [-.55, .83, 0], palma: [0, 0, 1] },
+  frente: { p: [.1, .14, .2], dedo: [-.15, 1, .2], palma: [-.5, 0, -.85] },
+  mejilla: { p: [.075, .27, .085], dedo: [-.1, 1, .25], palma: [-1, 0, -.3] },
+  cara: { p: [.03, .32, .1], dedo: [-.2, 1, .05], palma: [0, 0, -1] },
+  menton: { p: [.03, .245, .1], dedo: [-.35, .85, .3], palma: [0, .6, -.8] },
+  boca: { p: [0, .13, .2], dedo: [-.1, 1, .3], palma: [-1, 0, 0] },
+  oreja: { p: [.11, .34, 0], dedo: [-.1, 1, -.2], palma: [-.15, 0, 1], codo: [1, -.3, 0] },
+  arriba: { p: [.22, .3, .1], dedo: [.25, 1, .1], palma: [0, 0, 1], codo: [1, -.3, -.4] },
+  saludo: { p: [.17, .34, .13], dedo: [0, 1, 0], palma: [0, 0, 1] },
+  senalar: { p: [.05, .2, .32], dedo: [-.12, .1, 1], palma: [-.6, -.8, 0] },
+  lado: { p: [.2, .05, .2], dedo: [.4, .2, 1], palma: [0, 1, 0] },
+};
+const espejo = v => v && [-v[0], v[1], v[2]];
+export function desdeReceta(r) {
+  const c = r.cuerpo || {}, cara = { ...(r.cara || {}) };
+  if (r.guino) cara.blinkLeft = 1;
+  return { nombre: '✨ ' + r.nombre, simbolos: r.simbolos || [], fondo: r.fondo || undefined, plano: 'medio', nueva: true, pose: (t, k) => {
+    const x = ida(t, .15, .35, k), rb = r.ritmo === 'rebote' ? Math.max(0, sn(t, 1.2)) : 0, ola = r.ritmo === 'ola' ? sn(t, 1.4) : 0,
+      vaiven = r.ritmo === 'lado' ? sn(t, .6) : 0, late = r.ritmo === 'latido' ? Math.max(0, sn(t, 1.3)) ** 4 : 0,
+      tiembla = r.ritmo === 'temblor' ? .004 * sn(t, 9) : 0;
+    const salto = (r.salta || 0) * Math.max(0, Math.sin(Math.PI * Math.min(1, t / .55))) + (r.salta || 0) * .4 * rb;
+    const ik = {}, dedos = {};
+    for (const lado of ['I', 'D']) {
+      const m = (r.manos || {})[lado], L = m && LUGAR[m.lugar];
+      dedos[lado] = (m && m.dedos) || 'relajada';
+      if (!L) continue;
+      const d = lado === 'D', base = d ? espejo(L.p) : L.p;
+      const p = [base[0] + (d ? -1 : 1) * .02 * ola + tiembla, base[1] + .015 * rb * k + tiembla, base[2] + .012 * late];
+      ik[lado] = { p: mix(ABAJO[lado], p, x), dedo: d ? espejo(L.dedo) : L.dedo, palma: d ? espejo(L.palma) : L.palma };
+      if (L.codo) ik[lado].codo = d ? espejo(L.codo) : L.codo;
+    }
+    return { sube: .03 * k * salto, ik, dedos, cara,
+      huesos: { ...cuerpo(t, .5), hips: [0, 6 * vaiven, 3 * vaiven], spine: [(c.inclina || 0) * .5 * x, (c.gira || 0) * .5 * x, 0], chest: [(c.inclina || 0) * .5 * x, (c.gira || 0) * .5 * x, 0],
+        head: cab(t, (c.cabeza || 0) * x, (c.mira_lado || 0) * x, ((c.ladea || 0) + 4 * vaiven) * x, .3) } }; } };
+}
