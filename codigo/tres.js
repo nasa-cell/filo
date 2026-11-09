@@ -62,7 +62,8 @@
     if (!motor) return;
     // con algo en la columna de la izquierda (video, análisis, resultados, dibujo o cámara) Filo se corre a la derecha
     const cam = $('camara'), conVideo = celular.matches && ((lado && !lado.hidden) || (cam && !cam.hidden))
-      && !document.body.classList.contains('video-grande') && !document.body.classList.contains('ver-ambas');
+      && !document.body.classList.contains('video-grande') && !document.body.classList.contains('ver-ambas')
+      && !document.documentElement.classList.contains('repartir');  // con el reparto (distribucion.js) Filo ya tiene su lugar
     motor.correr(conVideo ? 0.2 : 0);
   }
   if (lado) new MutationObserver(correrConVideo).observe(lado, { attributes: true, attributeFilter: ['hidden', 'data-tipo'] });

@@ -78,7 +78,7 @@
     globos.filter((g) => g.id !== 'burbuja-video').forEach((g) => { g.style.marginTop = ''; g.style.left = ''; g.style.maxWidth = ''; });
     if (avisoRopa) avisoRopa.style.marginTop = '';
     const conAviso = visible(avisoRopa);
-    const activos = globos.filter(visible);
+    const activos = globos.filter((g) => g.id !== 'burbuja-video' && visible(g));  // el globo del video lo ubica conversacion.js
     if (!activos.length && !conAviso && !(celular && hayLado && visible(album))) return;
     // celular con la columna de la izquierda: los globos van sobre Filo (a la derecha), no encima de la columna
     if (columna) {

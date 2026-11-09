@@ -982,6 +982,10 @@
     let letra = parseFloat(getComputedStyle(burbuja).fontSize);
     while (burbuja.offsetHeight > piso - abajo && letra > 13) { letra = Math.max(13, letra - 1); b.fontSize = letra + 'px'; }
     if (burbuja.offsetHeight <= piso - abajo) { b.top = Math.round(abajo) + 'px'; return; }
+    // celular con reparto (distribucion.js): debajo del video a todo lo ancho; Filo se acomoda en lo que queda
+    if (document.documentElement.classList.contains('repartir') && !grande) {
+      b.width = (innerWidth - 16) + 'px'; b.left = '50%'; b.top = Math.round(abajo) + 'px'; return;
+    }
     // arriba del video, sin subir sobre los botones de arriba (con el video en grande, hasta el borde)
     const techo = grande ? 8 : lado.closest('.escenario').getBoundingClientRect().top;
     const arriba = v.top - burbuja.offsetHeight - 14;
@@ -990,17 +994,43 @@
     burbuja.classList.add('sobre-el-video');
     b.top = Math.round(Math.min(v.bottom, piso) - burbuja.offsetHeight - 12) + 'px';
   }
+  window.FiloColocarBurbuja = colocarBurbuja;  // para las pruebas automaticas
+  // corta un texto en partes de hasta ~90 letras sin partir frases
+  function enPartes(texto) {
+    const frases = texto.match(/[^.!?…]+[.!?…]*\s*/g) || [texto];
+    const partes = [];
+    for (const f of frases) {
+      const u = partes.length - 1;
+      if (u >= 0 && (partes[u] + f).trim().length <= 90) partes[u] += f;
+      else partes.push(f);
+    }
+    return partes.map((x) => x.trim()).filter(Boolean);
+  }
+  window.FiloEnPartes = enPartes;
   async function opinarDelVideo(o) {
     opinando = true;
-    burbuja.textContent = '💭 ' + o.texto;
+    // opinión larga: sale de a partes (una o dos frases), cada una el tiempo de leerla con calma (6 a 10 s)
+    const durar = (t) => Math.min(10000, Math.max(6000, t.length * 110));
+    const inicio = Date.now();
+    const partes = enPartes(o.texto);
+    let parte = 0, cambio = null;
+    const mostrarParte = () => {
+      burbuja.textContent = '💭 ' + partes[parte];
+      colocarBurbuja();
+      if (parte < partes.length - 1) cambio = setTimeout(() => { parte++; mostrarParte(); }, durar(partes[parte]));
+    };
     burbuja.hidden = false;
-    colocarBurbuja();
+    mostrarParte();
     const sigue = setInterval(colocarBurbuja, 400);  // por si agranda el video o gira el celular mientras habla
     A().bajarVolumen(true);
     try {
       await decir(o.texto, o.emocion);
+      // si terminó de hablar antes, el globo se queda hasta que se lean todas las partes
+      const falta = partes.reduce((t, x) => t + durar(x), 0) - (Date.now() - inicio);
+      if (falta > 0) await new Promise((r) => setTimeout(r, Math.min(falta, 25000)));
     } finally {
       A().bajarVolumen(false);
+      clearTimeout(cambio);
       clearInterval(sigue);
       burbuja.hidden = true;
       opinando = false;
