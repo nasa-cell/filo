@@ -75,7 +75,7 @@
       const tope = Math.min(barra ? caja(barra).top - HUECO : innerHeight - HUECO, pisaCara ? cab0.top - HUECO : Infinity, pisaBotones ? bt.top - HUECO : Infinity);
       lado.style.setProperty('--alto-panel', Math.max(150, Math.floor(tope - caja(lado).top)) + 'px');
     }
-    globos.forEach((g) => { g.style.marginTop = ''; g.style.left = ''; g.style.maxWidth = ''; });
+    globos.filter((g) => g.id !== 'burbuja-video').forEach((g) => { g.style.marginTop = ''; g.style.left = ''; g.style.maxWidth = ''; });
     if (avisoRopa) avisoRopa.style.marginTop = '';
     const conAviso = visible(avisoRopa);
     const activos = globos.filter(visible);
@@ -84,7 +84,7 @@
     if (columna) {
       const izq = Math.max(...[lado, camara].filter(visible).map((e) => caja(e).right)) + HUECO, der = innerWidth - HUECO;
       const base = caja(escenario);
-      activos.forEach((g) => {
+      activos.filter((g) => g.id !== 'burbuja-video').forEach((g) => {
         const fijo = getComputedStyle(g).position === 'fixed';
         g.style.left = ((izq + der) / 2 - (fijo ? 0 : base.left)) + 'px';
         g.style.maxWidth = Math.floor(der - izq) + 'px';
@@ -136,7 +136,7 @@
       const base = caja(escenario);
       const ventana = hayLado ? caja(lado) : null;
       orden.forEach((g) => {
-        if (g === avisoRopa) return;
+        if (g === avisoRopa || g.id === 'burbuja-video') return;
         const r = caja(g);
         if (!cruza(r, cab, HUECO)) return;
         const fijo = getComputedStyle(g).position === 'fixed';
