@@ -52,7 +52,6 @@
     lado.style.marginTop = '';
     if (camara) camara.style.marginTop = '';
     lado.style.removeProperty('--alto-panel');
-    lado.style.maxHeight = '';
     const ilu = $('ilustracion'); if (ilu) ilu.style.transform = '';
     // celular: la columna de la izquierda (ventana arriba y cámara debajo); la ventana no pasa del alto libre
     const columna = celular && (hayLado || visible(camara));
@@ -75,11 +74,6 @@
       const pisaBotones = bt && bt.left < caja(lado).right + HUECO;
       const tope = Math.min(barra ? caja(barra).top - HUECO : innerHeight - HUECO, pisaCara ? cab0.top - HUECO : Infinity, pisaBotones ? bt.top - HUECO : Infinity);
       lado.style.setProperty('--alto-panel', Math.max(150, Math.floor(tope - caja(lado).top)) + 'px');
-      // la ventana entera (con su botón de abajo) termina antes de la barra y de los botones del 3D
-      const fin = Math.min(barra ? caja(barra).top - HUECO : innerHeight - HUECO, pisaBotones ? bt.top - HUECO : Infinity);
-      // las dos: la Filo chica está debajo de la ventana, a la izquierda; la ventana termina antes de su cabeza
-      const fin2 = document.body.classList.contains('ver-ambas') && visible(ilu) && cab0 && cab0.left < caja(lado).right ? Math.min(fin, cab0.top - HUECO) : fin;
-      if (lado.querySelector('.resultados')) lado.style.maxHeight = Math.max(150, Math.floor(fin2 - caja(lado).top)) + 'px';
     }
     globos.forEach((g) => { g.style.marginTop = ''; g.style.left = ''; g.style.maxWidth = ''; });
     if (avisoRopa) avisoRopa.style.marginTop = '';
@@ -145,7 +139,6 @@
         if (g === avisoRopa) return;
         const r = caja(g);
         if (!cruza(r, cab, HUECO)) return;
-        const antes = [g.style.left, g.style.maxWidth];
         const fijo = getComputedStyle(g).position === 'fixed';
         const finDer = ventana && ventana.left > cab.right ? ventana.left - HUECO : innerWidth - HUECO;
         const lados = [[cab.right + HUECO, finDer], [conAviso ? caja(avisoRopa).right + HUECO : HUECO, cab.left - HUECO]];
@@ -158,7 +151,7 @@
           const nuevo = caja(g);
           if (!orden.some((o) => o !== g && cruza(nuevo, caja(o), HUECO - 1))) return;
         }
-        [g.style.left, g.style.maxWidth] = antes;  // sin lugar al costado (celular angosto): se queda donde estaba
+        g.style.left = ''; g.style.maxWidth = '';  // sin lugar al costado (celular angosto): se queda donde estaba
       });
     }
     // celular: la ventana de arriba baja si algun globo la tapa
