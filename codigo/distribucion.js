@@ -40,7 +40,9 @@
     html.repartir .escenario > .camara:not([hidden]) { width: 30vw; }
     html.repartir .escenario > .lado .resultados, html.repartir .escenario > .lado .libreta { max-height: var(--alto-cuadro, 46vh) !important; }
     html.repartir .escenario > .lado .libreta { width: 100%; }
-    html.repartir #filo[data-angosta] .tres-botones { grid-auto-flow: row; gap: 8px; right: 2px; bottom: 6px; }
+    /* columna angosta: los botones van arriba de la cabeza en un cuadrito de 2x2 (al costado tapaban las alas) */
+    html.repartir #filo[data-angosta] .tres-botones { grid-auto-flow: row; grid-template-columns: repeat(2, 34px); gap: 6px;
+      top: 4px; bottom: auto; left: 50%; right: auto; transform: translateX(-50%); }
     html.repartir #filo[data-angosta] .tres-botones button { width: 34px; height: 34px; font-size: 15px; }
     html.repartir .lado[data-tipo="dibujo"] .polaroid { width: min(44vw, var(--ancho-foto, 44vw)); }
     html.repartir .nerd-titulo { font-size: 13px; line-height: 1.25; min-height: 0; padding-top: 6px; padding-bottom: 6px; }
