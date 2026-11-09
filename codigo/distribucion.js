@@ -6,7 +6,8 @@
   const HUECO = 8;
   const FILA = 52;  // fila de avisos debajo de los botones de arriba («Pensando…», la ropa, la nube): nunca tapan nada
   // la figura de Filo dentro del dibujo (en unidades del svg: viewBox -70 0 1164 1024)
-  const FIG = { x0: 125, x1: 905, y0: 80, y1: 1000, vbx: -70, vbw: 1164, vbh: 1024 };
+  // x0/x1 incluyen las alas abiertas (aletean más allá del cuerpo): así nunca se cortan en los costados
+  const FIG = { x0: -50, x1: 1080, y0: 80, y1: 1000, vbx: -70, vbw: 1164, vbh: 1024 };
   const celular = () => innerWidth <= 700;
   const visible = (e) => e && !e.hidden && e.getClientRects().length > 0 && getComputedStyle(e).display !== 'none';
   const caja = (e) => e.getBoundingClientRect();

@@ -154,6 +154,7 @@ export function crearAlas(pecho, { tamano = 'medianas' } = {}) {
   raiz.scale.setScalar(TAMANOS[tamano] || 1);
 
   return {
+    raiz,
     tamano(n) { raiz.scale.setScalar(TAMANOS[n] || 1); },
     mostrar(si) { raiz.visible = !!si; },
     tocar() { toque = 1; },

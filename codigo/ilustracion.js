@@ -12,7 +12,9 @@
   }
   const grupo = (padre, attrs = {}) => el('g', attrs, padre);
   const camino = (padre, d, attrs = {}) => el('path', Object.assign({ d }, attrs), padre);
-  const mostrar = (g, si) => (g.style.display = si ? '' : 'none');
+  // solo escribe si cambió: cada cambio obliga al navegador a recalcular el dibujo
+  const mostrar = (g, si) => { const v = si ? '' : 'none'; if (g.__d !== v) { g.__d = v; g.style.display = v; } };
+  const poner = (e, k, v) => { if (e['__' + k] !== v) { e['__' + k] = v; e.setAttribute(k, v); } };
 
   const PIEL = '#ffefdf';
   const LINEA = '#151a4f';
@@ -214,9 +216,14 @@
     estado.mirar = [Math.max(-1, Math.min(1, (e.clientX - (r.left + r.width / 2)) / (r.width / 1.2))), Math.max(-1, Math.min(1, (e.clientY - (r.top + r.height * 0.45)) / (r.height / 1.2)))];
   });
 
+  const liviano = (navigator.deviceMemory && navigator.deviceMemory <= 4) || (navigator.hardwareConcurrency && navigator.hardwareConcurrency <= 4)
+    || matchMedia('(pointer: coarse)').matches;
+  let ultimoCuadro = 0;
   function cuadro(ahora) {
     requestAnimationFrame(cuadro);
     if (contenedor.hidden) return;  // si no se ve, no gasta
+    if (liviano && ahora - ultimoCuadro < 31) return;  // celulares: 30 cuadros por segundo, se ve igual de suave y gasta la mitad
+    ultimoCuadro = ahora;
     const t = ahora / 1000;
     const ex = estado.expresion;
     const voz = estado.hablando ? Math.max(0, estado.nivel) : 0;
@@ -337,13 +344,13 @@
     }
 
     mostrar(rubor, ['feliz', 'timida', 'amor', 'guino', 'risa', 'emocionada', 'orgullosa', 'celosa', 'contenta'].includes(ex));
-    rubor.style.opacity = ex === 'timida' ? 0.9 + Math.sin(t * 4) * 0.1 : 0.6;
+    if (rubor.__d !== 'none') rubor.style.opacity = ex === 'timida' ? 0.9 + Math.sin(t * 4) * 0.1 : 0.6;
     // al acariciarle la cabeza se pone muy roja (crece el sonrojo) y le salen destellos
     const rojo = zona === 'cabeza' ? Math.min(1, k * 2.5) : 0;
     if (rojo) { mostrar(rubor, true); rubor.style.opacity = 0.6 + rojo * 0.4; }
-    rubor.setAttribute('transform', rojo ? `translate(518 540) scale(${1 + rojo * 0.35} ${1 + rojo * 0.5}) translate(-518 -540)` : '');
+    poner(rubor, 'transform', rojo ? `translate(518 540) scale(${1 + rojo * 0.35} ${1 + rojo * 0.5}) translate(-518 -540)` : '');
     mostrar(sim.brillos, ex === 'feliz');
-    sim.brillos.style.opacity = 0.6 + Math.sin(t * 6) * 0.4;
+    if (ex === 'feliz') sim.brillos.style.opacity = 0.6 + Math.sin(t * 6) * 0.4;
     mostrar(sim.exclama, ex === 'sorpresa');
     mostrar(sim.pregunta, ex === 'pensando');
     mostrar(sim.gota, ['pensando', 'timida', 'miedo', 'pena'].includes(ex));
@@ -357,16 +364,17 @@
     mostrar(sim.nota, ex === 'orgullosa');
     mostrar(sim.zzz, ex === 'dormida');
     if (ex === 'dormida') zetas.forEach((z) => { const f = (t * 0.5 + z.i * 0.33) % 1; z.g.setAttribute('transform', `translate(${f * 30} ${-f * 60})`); z.g.style.opacity = Math.sin(f * Math.PI); });
-    sim.destellos.style.opacity = 0.5 + Math.sin(t * 8) * 0.5;
-    sim.asco.setAttribute('transform', `translate(0 ${(-((t * 20) % 20)).toFixed(1)})`);
-    sim.nota.setAttribute('transform', `translate(0 ${(Math.sin(t * 3) * 10).toFixed(1)}) rotate(${Math.sin(t * 3) * 8} 880 260)`);
-    sim.susto.style.opacity = 0.6 + Math.sin(t * 20) * 0.4;
+    // los símbolos solo se mueven mientras se ven
+    if (ex === 'emocionada') sim.destellos.style.opacity = 0.5 + Math.sin(t * 8) * 0.5;
+    if (ex === 'asco') sim.asco.setAttribute('transform', `translate(0 ${(-((t * 20) % 20)).toFixed(1)})`);
+    if (ex === 'orgullosa') sim.nota.setAttribute('transform', `translate(0 ${(Math.sin(t * 3) * 10).toFixed(1)}) rotate(${Math.sin(t * 3) * 8} 880 260)`);
+    if (ex === 'miedo') sim.susto.style.opacity = 0.6 + Math.sin(t * 20) * 0.4;
     mostrar(sim.vapor, ex === 'timida' || ex === 'celosa');
-    vena.setAttribute('transform', `translate(445 161) scale(${1 + Math.sin(t * 9) * 0.08}) translate(-445 -161)`);
-    preg.setAttribute('transform', `rotate(${Math.sin(t * 3) * 6} 460 150)`);
-    corazones.forEach((c, i) => c.g.setAttribute('transform', `translate(0 ${(-((t * 40 + i * 25) % 60)).toFixed(1)})`));
-    sim.estrella.setAttribute('transform', `rotate(${(t * 90) % 360} 790 380)`);
-    sim.penumbra.style.opacity = 0.5 + Math.sin(t * 2) * 0.2;
+    if (ex === 'enojada') vena.setAttribute('transform', `translate(445 161) scale(${1 + Math.sin(t * 9) * 0.08}) translate(-445 -161)`);
+    if (ex === 'pensando') preg.setAttribute('transform', `rotate(${Math.sin(t * 3) * 6} 460 150)`);
+    if (sim.corazones.__d !== 'none') corazones.forEach((c, i) => c.g.setAttribute('transform', `translate(0 ${(-((t * 40 + i * 25) % 60)).toFixed(1)})`));
+    if (ex === 'guino') sim.estrella.setAttribute('transform', `rotate(${(t * 90) % 360} 790 380)`);
+    if (ex === 'triste' || ex === 'miedo') sim.penumbra.style.opacity = 0.5 + Math.sin(t * 2) * 0.2;
   }
   requestAnimationFrame(cuadro);
 

@@ -7,7 +7,7 @@ import { VRMLoaderPlugin } from '@pixiv/three-vrm';
 import { crearSimbolos, crearFondos, crearImpacto, crearBoca, ACCESORIOS, dir, sobre, pegar, pieza, lazo, flor, arco, anillo, perfil, gorroBase, orejasPuntas, estrellaGeo, tubo } from './anime.js';
 import { ROPA, momentos } from './natural.js';
 import { crearManos, VTUBER, REEMPLAZA, HABLANDO, desdeReceta } from './manos.js?v=2';
-import { crearAlas } from './alas.js?v=2';
+import { crearAlas } from './alas.js?v=3';
 
 export async function iniciar(caja, { modelo, alas: tamanoAlas = 'medianas', liviano = false, alAvance = () => {}, alFondo = () => {}, alAgotar = () => {} } = {}) {
   const lienzo = document.createElement('canvas');
@@ -335,6 +335,7 @@ export async function iniciar(caja, { modelo, alas: tamanoAlas = 'medianas', liv
   const morfos = {}, escritos = {}, tocados = new Set();
   const PLANOS = { cintura: [1.9, -.1], general: [3.9, -.5] };
   let plano = 'cintura', zoom = 1, corrida = 0, corridaS = 0;
+  const cajaAlas = new THREE.Box3(); let medioAlas = 0, cuentaAlas = 0;
   let parpadeo = 0, proxParpadeo = 2, tiempo = 0, hablando = false, nivelVoz = 0, bocaFalsa = 0, bocaHasta = 0, mezclaHabla = 0;
   let auto = true, quietoDesde = 0, proxima = 0, bolsa = [], bolsaG = [], turnoGesto = false, anteriorAuto = null;
   const hacia = (k, v, vel, dt) => { suave[k] += (v - suave[k]) * (1 - Math.exp(-dt * vel)); return suave[k]; };
@@ -413,7 +414,10 @@ export async function iniciar(caja, { modelo, alas: tamanoAlas = 'medianas', liv
     vrm.update(dt);
     for (const o of conCaras) { for (const n in morfos) { const i = o.morphTargetDictionary[n]; if (i === undefined) continue; const marca = o.uuid + n, ant = escritos[marca], act = o.morphTargetInfluences[i], base = ant && Math.abs(act - ant.t) < 1e-6 ? ant.b : act, t = Math.min(1, base + morfos[n]); o.morphTargetInfluences[i] = t; escritos[marca] = { t, b: base }; } }
     // encuadre: de la cintura arriba (zoom y giro lo cambian)
-    const pl = PLANOS[plano], d = hacia('camD', pl[0] * zoom, 5, dt), oy = hacia('camY', plano === 'general' ? pl[1] : Math.max(-.5, pl[1] - (zoom - 1) * .3), 5, dt);
+    // celular: la cámara se aleja lo justo para que las alas entren enteras a lo ancho (salvo que acerquen con +)
+    if (alas.raiz.visible && (cuentaAlas++ % 10 === 0)) { cajaAlas.setFromObject(alas.raiz); medioAlas = Math.max(Math.abs(cajaAlas.min.x), Math.abs(cajaAlas.max.x)); }
+    const dAlas = document.documentElement.classList.contains('repartir') && zoom >= 1 && alas.raiz.visible ? medioAlas * 1.04 / (Math.tan(rad(cam.fov / 2)) * cam.aspect) : 0;
+    const pl = PLANOS[plano], d = hacia('camD', Math.max(pl[0] * zoom, dAlas), 5, dt), oy = hacia('camY', plano === 'general' ? pl[1] : Math.max(-.5, pl[1] - (zoom - 1) * .3), 5, dt);
     // con video en el celular Filo se corre a la derecha y la cámara se aleja un poco para que entren las alas
     corridaS += (corrida - corridaS) * (1 - Math.exp(-dt * 6));
     // y baja un poco para que la cabeza quede debajo del video, no detrás
