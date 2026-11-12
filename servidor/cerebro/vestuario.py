@@ -5,7 +5,7 @@ Cada atuendo es una «receta» (atuendos.json o las que Filo crea). Este modulo:
   - valida una receta (reglas: solo dibujos y adornos del catalogo, colores que combinen, textos limpios)
   - la pinta: capa del vestido y capa del adorno (webp transparentes, recortados)
 
-Para pintar los atuendos de atuendos.json:  python vestuario.py
+Para pintar los atuendos de atuendos.json:  python servidor/cerebro/vestuario.py
 """
 import colorsys
 import io
@@ -17,9 +17,10 @@ import re
 from PIL import Image, ImageDraw, ImageFilter
 
 CARPETA = os.path.dirname(os.path.abspath(__file__))
-ORIGINAL = os.path.join(CARPETA, 'imagenes', 'filo_cuerpo.png')
-MASCARA = os.path.join(CARPETA, 'imagenes', 'ropa', 'vestido-mascara.png')
-SALIDA = os.path.join(CARPETA, 'imagenes', 'ropa', 'dia')
+PAGINA = os.path.join(os.path.dirname(os.path.dirname(CARPETA)), 'pagina')
+ORIGINAL = os.path.join(PAGINA, 'imagenes', 'filo_cuerpo.png')
+MASCARA = os.path.join(PAGINA, 'imagenes', 'ropa', 'vestido-mascara.png')
+SALIDA = os.path.join(PAGINA, 'imagenes', 'ropa', 'dia')
 RECETAS = os.path.join(CARPETA, 'atuendos.json')
 K = 4  # los adornos se dibujan al cuadruple y se achican: bordes suaves
 

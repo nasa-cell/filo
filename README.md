@@ -32,32 +32,35 @@ Filo, la filolial de *El héroe del escudo*, en ilustración 2D y en 3D: convers
    | `GROQ_API_KEY` | IA principal (Qwen y gpt-oss, gratis en [Groq](https://console.groq.com/)) | sí |
    | `GEMINI_API_KEY` | IA de respaldo y para mirar fotos ([Google AI Studio](https://aistudio.google.com/)) | sí |
    | `FISH_API_KEY` | voz de Filo ([Fish Audio](https://fish.audio/), modelo gratis) | sí |
-   | `FILO_DATABASE_URL` | memoria en una base Postgres (por ejemplo [Neon](https://neon.tech/)); sin ella se guarda en la carpeta `datos_memoria` | no |
+   | `FILO_DATABASE_URL` | memoria en una base Postgres (por ejemplo [Neon](https://neon.tech/)); sin ella se guarda en la carpeta `servidor/cerebro/datos_memoria` | no |
    | `CLOUDINARY_CLOUD_NAME`, `CLOUDINARY_API_KEY`, `CLOUDINARY_API_SECRET` | guardar los dibujos en la nube | no |
 
-3. Haz doble clic en **`iniciar.cmd`**. Se abre en Chrome en `http://localhost:5077`.
-4. Las frases propias de Filo ya vienen grabadas en `voces`. Si cambias o agregas frases en `codigo/frases-filo.js`, con el servidor encendido ejecuta:
+3. Haz doble clic en **`servidor/iniciar.cmd`**. Se abre en Chrome en `http://localhost:5077`.
+4. Las frases propias de Filo ya vienen grabadas en `pagina/voces`. Si cambias o agregas frases en `pagina/codigo/frases-filo.js`, con el servidor encendido ejecuta:
    ```
-   python grabar_voces.py
+   python servidor/herramientas/grabar_voces.py
    ```
 
 ## Publicarla en Render
 
-Servicio web de Python: comando de instalación `pip install -r requirements.txt` y de inicio `python servidor.py`. Las claves van en las variables de entorno del servicio. Con `FILO_CLAVE` la página pide esa contraseña para entrar (así nadie más gasta las cuotas ni ve la memoria).
+Servicio web de Python: comando de instalación `pip install -r servidor/requirements.txt` y de inicio `python servidor/servidor.py`. Las claves van en las variables de entorno del servicio. Con `FILO_CLAVE` la página pide esa contraseña para entrar (así nadie más gasta las cuotas ni ve la memoria).
 
-## Archivos
+## Carpetas
 
-| Archivo | Qué es |
-|---|---|
-| `servidor.py` | servidor local: conversa con las IA, pide la voz y guarda la memoria |
-| `acciones.py` | dibujar, buscar videos y buscar en internet |
-| `memoria.py` | lo que Filo recuerda de cada persona y su ánimo |
-| `grabar_voces.py` | graba con la voz de Filo las frases de `codigo/frases-filo.js` |
-| `codigo/ilustracion.js` | Filo ilustrada y animada |
-| `codigo/tres.js`, `tres/` | Filo en 3D (modelo VRM): reacciones, ropa, gestos, zoom y giro |
-| `codigo/conversacion.js` | conversación, micrófono, caricias, emociones |
-| `codigo/acciones.js` | panel del dibujo, videos, resultados y álbum |
-| `codigo/frases-filo.js` | frases propias de Filo (hablar sola, caricias, avisos) |
+```
+servidor/            lo que corre en el servidor (Python)
+  servidor.py        conversa con las IA, pide la voz y guarda la memoria
+  iniciar.cmd        abre a Filo en el PC
+  requirements.txt   librerías de Python
+  cerebro/           acciones, memoria, emociones, ropa (taller, vestuario) y atuendos.json
+  herramientas/      grabar_voces.py: graba las frases de Filo con su voz
+pagina/              lo que ve el navegador
+  index.html
+  codigo/            conversación, ilustración, acciones, frases y Filo 3D (tres.js)
+  tres/              modelo VRM, alas, manos y librerías 3D
+  estilos/           colores y fondos
+  imagenes/  voces/  dibujos/
+```
 
 ## Créditos
 

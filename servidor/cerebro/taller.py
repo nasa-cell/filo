@@ -433,7 +433,7 @@ def _subir(datos, nombre):
     """Sube la capa a Cloudinary; sin nube (o en pruebas con FILO_ROPA_LOCAL) la deja en imagenes/ropa/creados."""
     if acciones.credenciales_nube() and not os.environ.get('FILO_ROPA_LOCAL'):
         return acciones.subir_archivo(datos, 'filo-ropa', nombre)
-    carpeta = os.path.join(vestuario.CARPETA, 'imagenes', 'ropa', 'creados')
+    carpeta = os.path.join(vestuario.PAGINA, 'imagenes', 'ropa', 'creados')
     os.makedirs(carpeta, exist_ok=True)
     with open(os.path.join(carpeta, nombre + '.webp'), 'wb') as f:
         f.write(datos)

@@ -1,6 +1,6 @@
 """Graba con la voz de Filo (Fish, modelo gratis) todas las frases de codigo/frases-filo.js y las deja en «voces».
 
-Uso: con el servidor encendido (iniciar.cmd), ejecutar:  python grabar_voces.py
+Uso: con el servidor encendido (iniciar.cmd), ejecutar:  python servidor/herramientas/grabar_voces.py
 Solo graba las frases nuevas o cambiadas; las que ya estan grabadas no se vuelven a pedir.
 """
 import hashlib
@@ -11,8 +11,9 @@ import time
 import urllib.parse
 import urllib.request
 
-CARPETA = os.path.dirname(os.path.abspath(__file__))
-VOCES = os.path.join(CARPETA, 'voces')
+CARPETA = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+PAGINA = os.path.join(os.path.dirname(CARPETA), 'pagina')
+VOCES = os.path.join(PAGINA, 'voces')
 SERVIDOR = 'http://127.0.0.1:5077'
 
 
@@ -22,12 +23,12 @@ def leer_frases():
               "const out=[];const ver=(x)=>{if(Array.isArray(x)&&typeof x[0]==='string')out.push(x);"
               "else if(Array.isArray(x))x.forEach(ver);else if(x&&typeof x==='object')Object.values(x).forEach(ver)};"
               "ver(window.FrasesFilo);process.stdout.write(JSON.stringify(out))")
-    salida = subprocess.run(['node', '-e', codigo, os.path.join(CARPETA, 'codigo', 'frases-filo.js')],
+    salida = subprocess.run(['node', '-e', codigo, os.path.join(PAGINA, 'codigo', 'frases-filo.js')],
                             capture_output=True, check=True)
     vistas, frases = set(), []
     lista = json.loads(salida.stdout.decode('utf-8'))
     # tambien la frase de estreno de cada atuendo de atuendos.json (ropa del dia y de los modos)
-    with open(os.path.join(CARPETA, 'atuendos.json'), encoding='utf-8') as f:
+    with open(os.path.join(CARPETA, 'cerebro', 'atuendos.json'), encoding='utf-8') as f:
         recetas = json.load(f)
     lista += [[r['frase'], r.get('emocion', 'feliz')] for r in recetas['atuendos'] + recetas['modos']]
     for texto, emocion in lista:

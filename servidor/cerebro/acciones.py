@@ -17,7 +17,7 @@ import urllib.request
 from concurrent.futures import ThreadPoolExecutor
 
 CARPETA = os.path.dirname(os.path.abspath(__file__))
-DIBUJOS = os.path.join(CARPETA, 'dibujos')
+DIBUJOS = os.path.join(os.path.dirname(os.path.dirname(CARPETA)), 'pagina', 'dibujos')
 NAVEGADOR = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/130.0 Safari/537.36'
 
 # pistas rapidas: solo si aparecen se pregunta a la IA si de verdad pide una accion

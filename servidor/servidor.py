@@ -15,7 +15,8 @@ import urllib.parse
 import urllib.request
 from http.server import SimpleHTTPRequestHandler, ThreadingHTTPServer
 
-import acciones
+sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)), 'cerebro'))
+import acciones  # noqa: E402
 import contextvars
 import random
 import threading
@@ -23,7 +24,8 @@ import memoria
 import emociones
 import taller
 
-CARPETA = os.path.dirname(os.path.abspath(__file__))
+# lo que ve el navegador esta en la carpeta «pagina»
+CARPETA = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), 'pagina')
 # en Render el puerto lo da la variable PORT y se escucha a internet; en el PC, solo en este equipo
 EN_LA_NUBE = bool(os.environ.get('PORT'))
 PUERTO = int(os.environ.get('PORT') or 5077)
